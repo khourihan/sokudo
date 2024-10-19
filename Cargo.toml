@@ -3,4 +3,17 @@ name = "sokudo"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = [
+    "crates/sokudo-core",
+    "crates/sokudo-io",
+]
+
+[workspace.dependencies]
+sokudo-core = { path = "crates/sokudo-core" }
+sokudo-io = { path = "crates/sokudo-io" }
+
+glam = { version = "0.29.0", features = [ "serde" ] }
+serde = { version = "1.0.210", features = [ "derive" ] }
+
 [dependencies]
