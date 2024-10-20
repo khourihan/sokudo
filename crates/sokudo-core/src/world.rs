@@ -9,7 +9,9 @@ pub struct World {
 
 impl World {
     pub fn step(&mut self) {
-
+        for collider in self.colliders.iter_mut() {
+            collider.transform.translate.y -= 0.1;
+        }
     }
 
     pub fn state(&self) -> WriteWorldState {

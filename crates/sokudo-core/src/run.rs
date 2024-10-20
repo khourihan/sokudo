@@ -1,6 +1,6 @@
 use std::path;
 
-use sokudo_io::{read::{ParseError, ParsedWorld}, write::{WorldStateHistory, WriteStateError}};
+use sokudo_io::{read::{ParseError, ParsedWorld}, write::{WriteWorldStateHistory, WriteStateError}};
 use thiserror::Error;
 
 use crate::world::World;
@@ -20,7 +20,7 @@ where
     P: AsRef<path::Path>
 {
     let mut world: World = ParsedWorld::read(world_path)?.into();
-    let mut history = WorldStateHistory::default();
+    let mut history = WriteWorldStateHistory::default();
 
     for _ in 0..world.steps {
         world.step();

@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+sokudo-io.workspace = true
+thiserror.workspace = true
+bevy = { version = "0.14.2", features = [ "dynamic_linking" ] }

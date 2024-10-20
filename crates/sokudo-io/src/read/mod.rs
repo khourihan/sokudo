@@ -9,10 +9,10 @@ pub mod collider;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
-    /// An IO error
+    /// An IO error.
     #[error(transparent)]
     Io(#[from] io::Error),
-    /// A RON error
+    /// A RON error.
     #[error(transparent)]
     Ron(#[from] ron::de::SpannedError),
 }

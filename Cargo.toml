@@ -24,3 +24,9 @@ sokudo-core.workspace = true
 sokudo-playback.workspace = true
 
 clap = { version = "4.5.20", features = [ "derive" ] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
