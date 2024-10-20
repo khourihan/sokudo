@@ -1,4 +1,4 @@
-use sokudo_io::ParsedWorld;
+use sokudo_io::read::ParsedWorld;
 
 #[test]
 fn read() {

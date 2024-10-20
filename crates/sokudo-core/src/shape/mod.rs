@@ -1,6 +1,6 @@
 use cuboid::CuboidShape;
 use glam::Vec3;
-use sokudo_io::collider::ParsedShape;
+use sokudo_io::read::collider::ParsedShape;
 
 pub mod cuboid;
 
