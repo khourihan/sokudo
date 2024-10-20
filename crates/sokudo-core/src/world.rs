@@ -3,6 +3,7 @@ use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, WriteWorldSt
 use crate::collider::Collider;
 
 pub struct World {
+    pub steps: u32,
     pub colliders: Vec<Collider>,
 }
 
@@ -21,6 +22,7 @@ impl World {
 impl From<ParsedWorld> for World {
     fn from(value: ParsedWorld) -> Self {
         World {
+            steps: value.steps,
             colliders: value.colliders.into_iter().map(Collider::from).collect(),
         }
     }

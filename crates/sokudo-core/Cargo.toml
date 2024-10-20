@@ -7,3 +7,4 @@ edition = "2021"
 sokudo-io.workspace = true
 
 glam.workspace = true
+thiserror.workspace = true

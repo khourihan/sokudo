@@ -20,6 +20,8 @@ pub enum ParseError {
 #[derive(Deserialize, Debug)]
 #[serde(rename = "World")]
 pub struct ParsedWorld {
+    pub steps: u32,
+
     #[serde(default)]
     pub colliders: Vec<ParsedCollider>,
 }

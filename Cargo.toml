@@ -7,13 +7,20 @@ edition = "2021"
 members = [
     "crates/sokudo-core",
     "crates/sokudo-io",
+    "crates/sokudo-playback",
 ]
 
 [workspace.dependencies]
 sokudo-core = { path = "crates/sokudo-core" }
 sokudo-io = { path = "crates/sokudo-io" }
+sokudo-playback = { path = "crates/sokudo-playback" }
 
 glam = { version = "0.29.0", features = [ "serde" ] }
 serde = { version = "1.0.210", features = [ "derive" ] }
+thiserror = "1.0.64"
 
 [dependencies]
+sokudo-core.workspace = true
+sokudo-playback.workspace = true
+
+clap = { version = "4.5.20", features = [ "derive" ] }

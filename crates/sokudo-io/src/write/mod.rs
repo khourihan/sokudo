@@ -22,7 +22,7 @@ pub struct WriteWorldState {
     pub colliders: Vec<WriteCollider>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct WorldStateHistory {
     states: Vec<WriteWorldState>,
 }
@@ -39,7 +39,7 @@ impl WorldStateHistory {
     where
         P: AsRef<path::Path>
     {
-        let file = fs::File::open(path)?;
+        let file = fs::File::create(path)?;
         ron::ser::to_writer(file, self)?;
 
         Ok(())
