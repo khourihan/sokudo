@@ -4,8 +4,8 @@ use collider::ParsedCollider;
 use serde::Deserialize;
 use thiserror::Error;
 
-mod transform;
-mod collider;
+pub mod transform;
+pub mod collider;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
@@ -18,6 +18,7 @@ pub enum ParseError {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename = "World")]
 pub struct ParsedWorld {
     #[serde(default)]
     pub colliders: Vec<ParsedCollider>,

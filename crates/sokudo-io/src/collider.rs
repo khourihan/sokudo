@@ -6,10 +6,11 @@ use crate::transform::ParsedTransform;
 #[serde(rename = "Collider")]
 pub struct ParsedCollider {
     pub transform: ParsedTransform,
-    pub shape: ParsedColliderShape,
+    pub shape: ParsedShape,
 }
 
 #[derive(Deserialize, Debug)]
-pub enum ParsedColliderShape {
+#[serde(rename = "Shape")]
+pub enum ParsedShape {
     Cuboid,
 }
