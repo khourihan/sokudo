@@ -1,6 +1,7 @@
 use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
 
 use bevy::{prelude::*, utils::HashMap};
+use bevy_mod_picking::{events::{Click, Pointer}, prelude::On, PickableBundle};
 use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::{ReadWorldStateHistory, WriteWorldState}};
 
 pub struct PlayerPlugin;
@@ -10,20 +11,22 @@ impl Plugin for PlayerPlugin {
         app
             .init_resource::<ColliderEntities>()
             .init_resource::<WorldStateIndex>()
+            .init_resource::<DeltaTime>()
+            .init_resource::<PlaybackTime>()
             .init_state::<PlayerState>()
             .add_systems(Startup, (setup_lights, setup_initial_state))
             .add_systems(
-                Update,
+                PreUpdate,
                 (
                     set_player_state_playing.run_if(in_state(PlayerState::Paused)),
                     set_player_state_paused.run_if(in_state(PlayerState::Playing)),
+                    update_world_state.after(set_player_state_playing).run_if(in_state(PlayerState::Playing)),
                 )
             )
             .add_systems(
                 Update,
                 (
-                    update_world_state,
-                    update_colliders.after(update_world_state).run_if(any_with_component::<Collider>),
+                    update_colliders.run_if(any_with_component::<Collider>),
                 ).run_if(in_state(PlayerState::Playing))
             );
     }
@@ -32,6 +35,16 @@ impl Plugin for PlayerPlugin {
 #[derive(Resource)]
 pub struct InitialWorld {
     pub world: ParsedWorld,
+}
+
+#[derive(Resource, Default)]
+pub struct DeltaTime {
+    pub dt: f32,
+}
+
+#[derive(Resource, Default)]
+pub struct PlaybackTime {
+    pub time: f32,
 }
 
 #[derive(Resource)]
@@ -86,8 +99,11 @@ fn setup_initial_state(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut collider_entities: ResMut<ColliderEntities>,
+    mut delta_time: ResMut<DeltaTime>,
     world: Res<InitialWorld>,
 ) {
+    delta_time.dt = world.world.dt;
+
     for collider in world.world.colliders.iter() {
         let mesh: Mesh = match collider.shape {
             ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
@@ -120,6 +136,7 @@ fn setup_initial_state(
                 ..default()
             },
             Collider,
+            PickableBundle::default(),
         )).id();
 
         collider_entities.map.insert(collider.id, entity);
@@ -129,9 +146,12 @@ fn setup_initial_state(
 fn set_player_state_playing(
     keys: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<PlayerState>>,
+    mut playback_time: ResMut<PlaybackTime>,
+    time: Res<Time>,
 ) {
     if keys.just_pressed(KeyCode::Space) {
-        next_state.set(PlayerState::Playing)
+        next_state.set(PlayerState::Playing);
+        playback_time.time = time.elapsed_seconds();
     }
 }
 
@@ -148,7 +168,16 @@ fn update_world_state(
     mut index: ResMut<WorldStateIndex>,
     mut next_state: ResMut<NextState<PlayerState>>,
     history: Res<WorldStateHistory>,
+    delta_time: Res<DeltaTime>,
+    mut playback_time: ResMut<PlaybackTime>,
+    time: Res<Time>,
 ) {
+    if time.elapsed_seconds() - playback_time.time <= delta_time.dt {
+        return;
+    }
+
+    playback_time.time += delta_time.dt;
+
     index.step += 1;
 
     if history.history.len() <= index.step {

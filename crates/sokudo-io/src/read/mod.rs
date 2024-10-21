@@ -1,6 +1,7 @@
 use std::{fs, io, path};
 
 use collider::ParsedCollider;
+use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -21,6 +22,8 @@ pub enum ParseError {
 #[serde(rename = "World")]
 pub struct ParsedWorld {
     pub steps: u32,
+    pub dt: f32,
+    pub gravity: Vec3,
 
     #[serde(default)]
     pub colliders: Vec<ParsedCollider>,

@@ -8,6 +8,16 @@ pub struct ParsedTransform {
     pub scale: Vec3,
 }
 
+impl Default for ParsedTransform {
+    fn default() -> Self {
+        Self {
+            translate: Vec3::ZERO,
+            rotate: Quat::IDENTITY,
+            scale: Vec3::ONE,
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for ParsedTransform {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

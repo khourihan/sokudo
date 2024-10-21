@@ -2,19 +2,19 @@ use glam::Vec3;
 
 use super::AbstractShape;
 
-/// A cube shape with unit side lengths.
+/// A cube shape with unit side lengths centered at the origin.
 #[derive(Debug)]
 pub struct CuboidShape;
 
 impl AbstractShape for CuboidShape {
-    fn sd(&self, p: Vec3) -> f32 {
-        let q = p.abs() - 0.5;
+    fn sd(&self, point: Vec3) -> f32 {
+        let q = point.abs() - 0.5;
         q.max(Vec3::ZERO).length() + q.max_element().min(0.0)
     }
 
-    fn sd_gradient(&self, p: Vec3) -> Vec3 {
-        let w = p.abs() - 0.5;
-        let s = p.signum();
+    fn sd_gradient(&self, point: Vec3) -> Vec3 {
+        let w = point.abs() - 0.5;
+        let s = point.signum();
 
         let g = w.max_element();
         let q = w.max(Vec3::ZERO);

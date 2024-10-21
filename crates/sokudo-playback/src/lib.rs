@@ -1,5 +1,6 @@
 use std::path;
 use bevy::prelude::*;
+use bevy_mod_picking::DefaultPickingPlugins;
 use camera::PanOrbitPlugin;
 use player::{InitialWorld, PlayerPlugin, WorldStateHistory};
 use sokudo_io::{read::{ParseError, ParsedWorld}, write::{ReadStateError, ReadWorldStateHistory}};
@@ -26,7 +27,7 @@ where
     let history = ReadWorldStateHistory::read(history_path)?;
 
     App::new()
-        .add_plugins((DefaultPlugins, PanOrbitPlugin, PlayerPlugin))
+        .add_plugins((DefaultPlugins, DefaultPickingPlugins, PanOrbitPlugin, PlayerPlugin))
         .insert_resource(WorldStateHistory { history })
         .insert_resource(InitialWorld { world })
         .run();

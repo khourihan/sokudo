@@ -7,3 +7,4 @@ edition = "2021"
 sokudo-io.workspace = true
 thiserror.workspace = true
 bevy = { version = "0.14.2", features = [ "dynamic_linking" ] }
+bevy_mod_picking = "0.20.1"

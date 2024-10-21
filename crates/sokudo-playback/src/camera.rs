@@ -1,6 +1,7 @@
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy_mod_picking::selection::PickSelection;
 
 pub struct PanOrbitPlugin;
 
@@ -8,7 +9,13 @@ impl Plugin for PanOrbitPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, setup_pan_orbit_camera)
-            .add_systems(Update, pan_orbit_camera.run_if(any_with_component::<PanOrbitState>));
+            .add_systems(
+                PostUpdate,
+                (
+                    track_pan_orbit_target,
+                    pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),
+                ).chain()
+            );
     }
 }
 
@@ -42,7 +49,7 @@ impl Default for PanOrbitState {
     fn default() -> Self {
         PanOrbitState {
             center: Vec3::ZERO,
-            radius: 1.0,
+            radius: 10.0,
             upside_down: false,
             pitch: 0.0,
             yaw: 0.0,
@@ -110,15 +117,11 @@ fn pan_orbit_camera(
             total_orbit.x = -total_orbit.x;
         }
 
-        let mut any = false;
-
         if total_zoom != Vec2::ZERO {
-            any = true;
             state.radius *= (-total_zoom.y).exp();
         }
 
         if total_orbit != Vec2::ZERO {
-            any = true;
             state.yaw += total_orbit.x;
             state.pitch += total_orbit.y;
 
@@ -137,15 +140,27 @@ fn pan_orbit_camera(
         }
 
         if total_pan != Vec2::ZERO {
-            any = true;
             let radius = state.radius;
             state.center += transform.right() * total_pan.x * radius;
             state.center += transform.up() * total_pan.y * radius;
         }
 
-        if any || state.is_added() {
-            transform.rotation = Quat::from_euler(EulerRot::YXZ, state.yaw, state.pitch, 0.0);
-            transform.translation = state.center + transform.back() * state.radius;
+        transform.rotation = Quat::from_euler(EulerRot::YXZ, state.yaw, state.pitch, 0.0);
+        transform.translation = state.center + transform.back() * state.radius;
+    }
+}
+
+fn track_pan_orbit_target(
+    targets: Query<(&Transform, &PickSelection)>,
+    mut cameras: Query<&mut PanOrbitState>,
+) {
+    for (transform, selection) in &targets {
+        if !selection.is_selected {
+            continue;
+        }
+
+        for mut camera in &mut cameras {
+            camera.center = transform.translation;
         }
     }
 }

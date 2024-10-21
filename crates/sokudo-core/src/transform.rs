@@ -4,11 +4,11 @@ use sokudo_io::{read::transform::ParsedTransform, write::transform::WriteTransfo
 /// Describes the position of an object.
 #[derive(Debug, Clone)]
 pub struct Transform {
-    /// Position of the object.
+    /// Position of the object, in meters.
     pub translate: Vec3,
     /// Rotation of the object.
     pub rotate: Quat,
-    /// Scale of the object.
+    /// Scale of the object, in meters.
     pub scale: Vec3,
 }
 
