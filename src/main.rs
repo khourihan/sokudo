@@ -18,8 +18,14 @@ enum Commands {
         world: PathBuf,
 
         /// The file to output the simulation data to.
-        #[arg(short, long, value_name = "FILENAME")]
-        outfile: PathBuf,
+        history: PathBuf,
+    },
+    Bake {
+        /// The file to read as the initial world state.
+        world: PathBuf,
+
+        /// The file to output the simulation data to.
+        history: PathBuf,
     },
     Play {
         /// The file to read as the initial world state.
@@ -36,13 +42,31 @@ fn main() {
     match cli.command {
         Commands::Run {
             world,
-            outfile,
+            history,
         } => {
-            match run_simulation(world, outfile) {
+            match run_simulation(world.clone(), history.clone()) {
                 Ok(_) => (),
                 Err(err) => {
                     println!("{}", err);
                 },
+            }
+
+            match play(world, history) {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("{}", err);
+                }
+            }
+        },
+        Commands::Bake {
+            world,
+            history,
+        } => {
+            match run_simulation(world, history) {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("{}", err);
+                }
             }
         },
         Commands::Play {

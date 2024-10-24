@@ -11,7 +11,7 @@ pub trait AbstractShape {
     /// reside inside the object and values of zero are on the surface.
     fn sd(&self, point: Vec3) -> f32;
 
-    /// The gradient of the signed distance field of this [`Shape`].
+    /// The gradient of the signed distance field of this [`Shape`] at the given `point`.
     ///
     /// Default implementation computes the gradient via finite difference.
     fn sd_gradient(&self, point: Vec3) -> Vec3 {
@@ -24,7 +24,7 @@ pub trait AbstractShape {
         let d_sd_dz = (self.sd(Vec3::new(point.x, point.y, point.z + Self::GRADIENT_EPSILON)) - sd_p)
             / Self::GRADIENT_EPSILON;
 
-        Vec3::new(d_sd_dx, d_sd_dy, d_sd_dz)
+        Vec3::new(d_sd_dx, d_sd_dy, d_sd_dz).normalize_or_zero()
     }
 
     /// Projects the given `point` onto the surface of this [`Shape`].
@@ -36,6 +36,11 @@ pub trait AbstractShape {
     fn intersects(&self, point: Vec3) -> bool {
         self.sd(point) <= 0.0
     }
+
+    /// The starting points used to test intersections.
+    // TODO: Decompose SDFs into OBBs and intersect those. Centers of intersecting OBBs are
+    // starting points.
+    fn starting_points(&self) -> Vec<Vec3>;
 }
 
 #[derive(Debug)]
@@ -53,6 +58,12 @@ impl AbstractShape for Shape {
     fn sd_gradient(&self, point: Vec3) -> Vec3 {
         match self {
             Shape::Cuboid(c) => c.sd_gradient(point),
+        }
+    }
+
+    fn starting_points(&self) -> Vec<Vec3> {
+        match self {
+            Shape::Cuboid(c) => c.starting_points(),
         }
     }
 }

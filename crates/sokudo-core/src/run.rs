@@ -22,6 +22,7 @@ where
     let mut world: World = ParsedWorld::read(world_path)?.into();
     let mut history = WriteWorldStateHistory::default();
 
+    world.initialize();
     history.push(world.state());
 
     for _ in 0..world.steps {

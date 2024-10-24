@@ -30,4 +30,17 @@ impl AbstractShape for CuboidShape {
             Vec3::Z
         })
     }
+
+    fn starting_points(&self) -> Vec<Vec3> {
+        vec![
+            Vec3::new(0.5, 0.5, 0.5),
+            Vec3::new(0.5, -0.5, 0.5),
+            Vec3::new(0.5, 0.5, -0.5),
+            Vec3::new(0.5, -0.5, -0.5),
+            Vec3::new(-0.5, 0.5, 0.5),
+            Vec3::new(-0.5, -0.5, 0.5),
+            Vec3::new(-0.5, 0.5, -0.5),
+            Vec3::new(-0.5, -0.5, -0.5),
+        ]
+    }
 }

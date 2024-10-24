@@ -1,8 +1,8 @@
-use std::f32::consts::{FRAC_PI_3, FRAC_PI_6};
+use std::f32::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6};
 
 use bevy::{prelude::*, utils::HashMap};
-use bevy_mod_picking::{events::{Click, Pointer}, prelude::On, PickableBundle};
-use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::{ReadWorldStateHistory, WriteWorldState}};
+use bevy_mod_picking::PickableBundle;
+use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::ReadWorldStateHistory};
 
 pub struct PlayerPlugin;
 
@@ -76,18 +76,48 @@ fn setup_lights(
     mut commands: Commands,
     mut ambient_light: ResMut<AmbientLight>,
 ) {
-    ambient_light.brightness = 100.0;
+    ambient_light.brightness = 200.0;
 
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             color: Color::WHITE,
-            illuminance: 1000.0,
+            illuminance: 5000.0,
             ..default()
         },
         transform: Transform::from_rotation(Quat::from_euler(
             EulerRot::YXZ,
             2.0 * FRAC_PI_3,
             FRAC_PI_6,
+            0.0,
+        )),
+        ..default()
+    });
+
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::WHITE,
+            illuminance: 2000.0,
+            ..default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(
+            EulerRot::YXZ,
+            4.0 * FRAC_PI_3,
+            FRAC_PI_3,
+            0.0,
+        )),
+        ..default()
+    });
+
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::WHITE,
+            illuminance: 500.0,
+            ..default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(
+            EulerRot::YXZ,
+            0.0,
+            FRAC_PI_4,
             0.0,
         )),
         ..default()
