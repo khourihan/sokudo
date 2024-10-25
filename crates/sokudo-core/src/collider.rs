@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Mat3, Vec3};
 use sokudo_io::{read::collider::{ParsedCollider, ParsedForces, ParsedMaterial}, write::{collider::WriteCollider, inspect::InspectElements}};
 
 use crate::{shape::{AbstractShape, Shape}, transform::Transform};
@@ -21,6 +21,9 @@ pub struct Collider {
     /// Whether or not this collider is locked. 
     /// This turns off gravity and gives it infinite mass. 
     pub locked: bool,
+
+    /// The object's moments of inertia, represented as the three principle axes.
+    pub moments: Vec3,
 
     /// The forces acting on this collider.
     pub forces: Forces,
@@ -83,8 +86,8 @@ impl Collider {
         let d_self = other.sd(p_self).abs();
         let d_other = self.sd(p_other).abs();
 
-        let f_self = n_self * d_self * 100.0;
-        let f_other = n_other * d_other * 100.0;
+        let f_self = n_self * d_self * 1000.0;
+        let f_other = n_other * d_other * 1000.0;
 
         inspector.add_point("isect", intersection);
 
@@ -181,6 +184,21 @@ impl Collider {
         self.forces.linear += f;
         self.forces.torque += arm.cross(f);
     }
+
+    pub fn compute_moments(&mut self) {
+        self.moments = self.shape.moments(self.transform.scale);
+    }
+
+    pub fn inertia_tensor(&self, r: Mat3) -> Mat3 {
+        let mut rt = r.transpose();
+        let moments = self.moments * self.mass;
+
+        rt.x_axis /= moments.x;
+        rt.y_axis /= moments.y;
+        rt.z_axis /= moments.z;
+
+        r * rt
+    }
 }
 
 impl From<ParsedCollider> for Collider {
@@ -192,6 +210,8 @@ impl From<ParsedCollider> for Collider {
             mass: value.mass,
             material: value.material.into(),
             locked: value.locked,
+
+            moments: Vec3::ZERO,
 
             forces: value.forces.into(),
             velocity: value.velocity,

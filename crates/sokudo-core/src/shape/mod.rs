@@ -41,6 +41,8 @@ pub trait AbstractShape {
     // TODO: Decompose SDFs into OBBs and intersect those. Centers of intersecting OBBs are
     // starting points.
     fn starting_points(&self) -> Vec<Vec3>;
+
+    fn moments(&self, scale: Vec3) -> Vec3;
 }
 
 #[derive(Debug)]
@@ -64,6 +66,12 @@ impl AbstractShape for Shape {
     fn starting_points(&self) -> Vec<Vec3> {
         match self {
             Shape::Cuboid(c) => c.starting_points(),
+        }
+    }
+
+    fn moments(&self, scale: Vec3) -> Vec3 {
+        match self {
+            Shape::Cuboid(c) => c.moments(scale),
         }
     }
 }

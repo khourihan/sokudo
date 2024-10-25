@@ -43,4 +43,8 @@ impl AbstractShape for CuboidShape {
             Vec3::new(-0.5, -0.5, -0.5),
         ]
     }
+
+    fn moments(&self, scale: Vec3) -> Vec3 {
+        scale.normalize()
+    }
 }
