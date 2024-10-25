@@ -1,5 +1,5 @@
 use glam::Vec3;
-use sokudo_io::{read::collider::{ParsedCollider, ParsedForces, ParsedMaterial}, write::collider::WriteCollider};
+use sokudo_io::{read::collider::{ParsedCollider, ParsedForces, ParsedMaterial}, write::{collider::WriteCollider, inspect::InspectElements}};
 
 use crate::{shape::{AbstractShape, Shape}, transform::Transform};
 
@@ -59,7 +59,7 @@ impl Collider {
 
     /// Simulates the collision between two [`Collider`]s, applying the necessary forces to resolve
     /// the collision if necessary.
-    pub fn collide(&mut self, other: &mut Self) {
+    pub fn collide(&mut self, other: &mut Self, inspector: &mut InspectElements) {
         let mut intersection = None;
 
         for point in self.starting_points().chain(other.starting_points()) {
@@ -85,6 +85,14 @@ impl Collider {
 
         let f_self = n_self * d_self * 100.0;
         let f_other = n_other * d_other * 100.0;
+
+        inspector.add_point("isect", intersection);
+
+        // inspector.add_point("p1", p_self);
+        // inspector.add_point("p2", p_other);
+
+        inspector.add_ray("n1", p_self, n_self * d_self);
+        inspector.add_ray("n2", p_other, n_other * d_other);
 
         self.apply_force(p_self, f_self - f_other);
         other.apply_force(p_other, f_other - f_self);

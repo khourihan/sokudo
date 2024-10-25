@@ -1,5 +1,5 @@
 use glam::Vec3;
-use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, WriteWorldState}};
+use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
 use crate::collider::Collider;
 
@@ -8,6 +8,7 @@ pub struct World {
     pub dt: f32,
     pub gravity: Vec3,
     pub colliders: Vec<Collider>,
+    pub inspector: InspectElements,
 }
 
 impl World {
@@ -18,6 +19,8 @@ impl World {
     }
 
     pub fn step(&mut self) {
+        self.inspector.reset();
+
         for i in 0..self.colliders.len() {
             for j in 0..self.colliders.len() {
                 if i >= j {
@@ -28,7 +31,7 @@ impl World {
                     let collider1 = &mut *(self.colliders.get_unchecked_mut(i) as *mut Collider);
                     let collider2 = &mut *(self.colliders.get_unchecked_mut(j) as *mut Collider);
 
-                    collider1.collide(collider2);
+                    collider1.collide(collider2, &mut self.inspector);
                 }
             }
         }
@@ -49,6 +52,7 @@ impl World {
     pub fn state(&self) -> WriteWorldState {
         WriteWorldState {
             colliders: self.colliders.iter().map(WriteCollider::from).collect(),
+            inspector: self.inspector.clone(),
         }
     }
 }
@@ -60,6 +64,7 @@ impl From<ParsedWorld> for World {
             dt: value.dt,
             gravity: value.gravity,
             colliders: value.colliders.into_iter().map(Collider::from).collect(),
+            inspector: InspectElements::default(),
         }
     }
 }

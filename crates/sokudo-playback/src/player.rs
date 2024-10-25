@@ -2,7 +2,9 @@ use std::f32::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6};
 
 use bevy::{prelude::*, utils::HashMap};
 use bevy_mod_picking::PickableBundle;
-use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::ReadWorldStateHistory};
+use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
+
+use crate::camera::PanOrbitState;
 
 pub struct PlayerPlugin;
 
@@ -21,14 +23,10 @@ impl Plugin for PlayerPlugin {
                     set_player_state_playing.run_if(in_state(PlayerState::Paused)),
                     set_player_state_paused.run_if(in_state(PlayerState::Playing)),
                     update_world_state.after(set_player_state_playing).run_if(in_state(PlayerState::Playing)),
+                    step_state_on_pause.after(set_player_state_paused).run_if(in_state(PlayerState::Paused)),
                 )
             )
-            .add_systems(
-                Update,
-                (
-                    update_colliders.run_if(any_with_component::<Collider>),
-                ).run_if(in_state(PlayerState::Playing))
-            );
+            .add_systems(Update, (update_inspect_elements, update_colliders));
     }
 }
 
@@ -139,7 +137,7 @@ fn setup_initial_state(
             ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
         };
 
-        let material = StandardMaterial::from_color(Color::srgb(1.0, 0.0, 0.0));
+        let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.5));
 
         let entity = commands.spawn((
             PbrBundle {
@@ -222,6 +220,10 @@ fn update_colliders(
     index: Res<WorldStateIndex>,
     history: Res<WorldStateHistory>,
 ) {
+    if !index.is_changed() {
+        return;
+    }
+
     let world_state = history.history.get(index.step);
 
     for collider in world_state.colliders.iter() {
@@ -245,5 +247,59 @@ fn update_colliders(
             collider.transform.rotate.z,
             collider.transform.rotate.w,
         );
+    }
+}
+
+fn update_inspect_elements(
+    mut gizmos: Gizmos,
+    index: Res<WorldStateIndex>,
+    history: Res<WorldStateHistory>,
+    cameras: Query<&Transform, With<PanOrbitState>>,
+) {
+    let world_state = history.history.get(index.step);
+    let camera_transform = cameras.single();
+    let camera = camera_transform.translation;
+
+    for elem in world_state.inspector.elements.values() {
+        match elem {
+            InspectFeature::Point(point) => {
+                let point = Vec3::new(
+                    point.x,
+                    point.y,
+                    point.z,
+                );
+
+                gizmos.circle(point, Dir3::new(camera - point).unwrap(), 0.01, Color::srgb(1.0, 0.0, 0.0));
+            },
+            InspectFeature::Ray { origin, direction } => {
+                let origin = Vec3::new(
+                    origin.x,
+                    origin.y,
+                    origin.z,
+                );
+
+                let direction = Vec3::new(
+                    direction.x,
+                    direction.y,
+                    direction.z,
+                );
+
+                gizmos.ray(origin, direction, Color::srgb(0.0, 0.0, 1.0));
+            },
+        }
+    }
+}
+
+fn step_state_on_pause(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut index: ResMut<WorldStateIndex>,
+    history: Res<WorldStateHistory>,
+) {
+    if keys.just_pressed(KeyCode::KeyJ) && index.step > 0 {
+        index.step -= 1;
+    }
+
+    if keys.just_pressed(KeyCode::KeyL) && index.step < history.history.len() - 1 {
+        index.step += 1;
     }
 }
