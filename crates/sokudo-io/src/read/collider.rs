@@ -1,7 +1,7 @@
 use glam::{UVec3, Vec3};
 use serde::Deserialize;
 
-use crate::read::transform::ParsedTransform;
+use crate::read::{defaults::DefaultOptions, transform::ParsedTransform};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename = "Collider")]
@@ -13,12 +13,12 @@ pub struct ParsedCollider {
     pub transform: ParsedTransform,
     #[serde(default)]
     pub material: ParsedMaterial,
-    #[serde(default = "default_mass")]
+    #[serde(default = "DefaultOptions::mass")]
     pub mass: f32,
     #[serde(default)]
     pub locked: bool,
 
-    #[serde(default)]
+    #[serde(default = "DefaultOptions::vertex_resolution")]
     pub vertex_resolution: UVec3,
     #[serde(default)]
     pub vertices: Vec<Vec3>,
@@ -34,8 +34,6 @@ pub struct ParsedCollider {
     #[serde(default)]
     pub acceleration: Vec3,
 }
-
-fn default_mass() -> f32 { 1.0 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename = "Shape")]
@@ -55,17 +53,21 @@ pub struct ParsedForces {
 #[derive(Deserialize, Debug)]
 #[serde(rename = "Material")]
 pub struct ParsedMaterial {
+    #[serde(default = "DefaultOptions::material_roughness")]
     pub roughness: f32,
+    #[serde(default = "DefaultOptions::material_resilience")]
     pub resilience: f32,
+    #[serde(default = "DefaultOptions::material_hardness")]
     pub hardness: f32,
+
 }
 
 impl Default for ParsedMaterial {
     fn default() -> Self {
         Self {
-            roughness: 1.0,
-            resilience: 0.2,
-            hardness: 1.0,
+            roughness: DefaultOptions::material_roughness(),
+            resilience: DefaultOptions::material_resilience(),
+            hardness: DefaultOptions::material_hardness(),
         }
     }
 }

@@ -24,6 +24,7 @@ impl Plugin for PlayerPlugin {
                     set_player_state_paused.run_if(in_state(PlayerState::Playing)),
                     update_world_state.after(set_player_state_playing).run_if(in_state(PlayerState::Playing)),
                     step_state_on_pause.after(set_player_state_paused).run_if(in_state(PlayerState::Paused)),
+                    restart_player,
                 )
             )
             .add_systems(Update, (update_inspect_elements, update_colliders));
@@ -137,7 +138,7 @@ fn setup_initial_state(
             ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
         };
 
-        let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.5));
+        let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.8));
 
         let entity = commands.spawn((
             PbrBundle {
@@ -301,5 +302,14 @@ fn step_state_on_pause(
 
     if keys.just_pressed(KeyCode::KeyL) && index.step < history.history.len() - 1 {
         index.step += 1;
+    }
+}
+
+fn restart_player(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut index: ResMut<WorldStateIndex>,
+) {
+    if keys.just_pressed(KeyCode::KeyR) {
+        index.step = 0;
     }
 }

@@ -7,6 +7,7 @@ use thiserror::Error;
 
 pub mod transform;
 pub mod collider;
+mod defaults;
 
 #[derive(Error, Debug)]
 pub enum ParseError {

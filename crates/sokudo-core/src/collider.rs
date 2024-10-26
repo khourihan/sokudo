@@ -81,9 +81,25 @@ impl Collider {
 
             // Find the escape vector of the vertex.
             let d = exterior_point - vertex;
+            let dist = d.length();
 
-            self.apply_force(vertex, d * 1000.0);
-            other.apply_force(vertex, -d * 1000.0);
+            if dist == 0.0 { continue };
+
+            let kt = other.material.roughness;
+            let kn = other.material.resilience;
+            let kc = other.material.hardness;
+
+            let v = self.velocity_at_point(vertex);
+            let vvel = other.velocity_at_point(vertex);
+            let vdiff = v - vvel;
+            let n = d / dist;
+            let vn = vdiff.dot(n) * n;
+            let vt = (vn * n - vdiff) * kt;
+            let b = (kc * self.mass).sqrt() * 2.0 * kn;
+            let f = (d * kc - b * vn + vt) * self.mass;
+
+            self.apply_force(vertex, f);
+            other.apply_force(vertex, -f);
 
             inspector.add_point(format!("vertex_{}", vertices as usize), vertex);
         }
@@ -188,9 +204,9 @@ impl From<ParsedForces> for Forces {
 impl From<ParsedMaterial> for Material {
     fn from(value: ParsedMaterial) -> Self {
         Material {
-            roughness: value.roughness,
-            resilience: value.resilience,
-            hardness: value.hardness,
+            roughness: value.roughness * 4.0,
+            resilience: (1.0 - value.resilience).powi(10),
+            hardness: value.hardness * 1000.0,
         }
     }
 }
