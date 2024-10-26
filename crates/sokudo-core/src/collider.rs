@@ -56,7 +56,7 @@ pub struct Material {
 }
 
 impl Collider {
-    const MAX_GRADIENT_DESCENT_STEPS: u32 = 1000;
+    const MAX_GRADIENT_DESCENT_STEPS: u32 = 2500;
     const GRADIENT_DESCENT_STEP_SIZE: f32 = 0.1;
     const GRADIENT_DESCENT_EPSILON: f32 = 0.01 * 0.01;
 
@@ -91,8 +91,8 @@ impl Collider {
 
         inspector.add_point("isect", intersection);
 
-        // inspector.add_point("p1", p_self);
-        // inspector.add_point("p2", p_other);
+        inspector.add_point("p1", p_self);
+        inspector.add_point("p2", p_other);
 
         inspector.add_ray("n1", p_self, n_self * d_self);
         inspector.add_ray("n2", p_other, n_other * d_other);
@@ -105,13 +105,10 @@ impl Collider {
     /// using gradient descent starting at the given `point`.
     fn find_collision_point(&self, other: &Self, mut point: Vec3) -> Vec3 {
         let mut step = 0;
-        let mut prev_point = point + 100.0;
 
         while (self.sd(point) > 0.0 || other.sd(point) > 0.0) 
-            && (prev_point - point).length_squared() > Self::GRADIENT_DESCENT_EPSILON 
             && step < Self::MAX_GRADIENT_DESCENT_STEPS
         {
-            prev_point = point;
             step += 1;
 
             if self.sd(point) > 0.0 {
@@ -133,8 +130,7 @@ impl Collider {
         let mut step = 0;
         let mut prev_point = point + 100.0;
 
-        while self.sd(point) <= 0.0 && other.sd(point) <= 0.0 
-            && (prev_point - point).length_squared() > Self::GRADIENT_DESCENT_EPSILON
+        while (prev_point - point).length_squared() > Self::GRADIENT_DESCENT_EPSILON
             && step < Self::MAX_GRADIENT_DESCENT_STEPS
         {
             prev_point = point;
