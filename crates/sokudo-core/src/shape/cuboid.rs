@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{UVec3, Vec2, Vec3, Vec3Swizzles};
 
 use super::AbstractShape;
 
@@ -31,17 +31,30 @@ impl AbstractShape for CuboidShape {
     //     })
     // }
 
-    fn starting_points(&self) -> Vec<Vec3> {
-        vec![
-            Vec3::new(0.5, 0.5, 0.5),
-            Vec3::new(0.5, -0.5, 0.5),
-            Vec3::new(0.5, 0.5, -0.5),
-            Vec3::new(0.5, -0.5, -0.5),
-            Vec3::new(-0.5, 0.5, 0.5),
-            Vec3::new(-0.5, -0.5, 0.5),
-            Vec3::new(-0.5, 0.5, -0.5),
-            Vec3::new(-0.5, -0.5, -0.5),
-        ]
+    fn vertices(&self, resolution: UVec3) -> Vec<Vec3> {
+        let mut vertices = Vec::new();
+
+        for (up, x, y) in
+            [(Vec3::Y, 0, 2), (Vec3::NEG_Y, 0, 2), (Vec3::X, 2, 1), (Vec3::NEG_X, 2, 1), (Vec3::Z, 1, 0), (Vec3::NEG_Z, 1, 0)]
+        {
+            let right = up.yzx();
+            let front = up.cross(right);
+
+            for i in 0..=resolution[x] {
+                for j in 0..=resolution[y] {
+                    let uv = Vec2::new(i as f32, j as f32)
+                        / Vec2::new(resolution[x] as f32, resolution[y] as f32);
+
+                    let p = up * 0.5 + (uv.x - 0.5) * right + (uv.y - 0.5) * front;
+
+                    if !vertices.contains(&p) {
+                        vertices.push(p);
+                    }
+                }
+            }
+        }
+
+        vertices
     }
 
     fn moments(&self, scale: Vec3) -> Vec3 {

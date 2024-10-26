@@ -14,7 +14,7 @@ pub struct World {
 impl World {
     pub fn initialize(&mut self) {
         for collider in self.colliders.iter_mut() {
-            collider.set_starting_points();
+            collider.compute_vertices();
             collider.compute_moments();
         }
     }
@@ -66,7 +66,7 @@ impl World {
     fn apply_collisions(&mut self) {
         for i in 0..self.colliders.len() {
             for j in 0..self.colliders.len() {
-                if i >= j {
+                if i == j {
                     continue;
                 }
 

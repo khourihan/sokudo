@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{UVec3, Vec3};
 use serde::Deserialize;
 
 use crate::read::transform::ParsedTransform;
@@ -17,6 +17,11 @@ pub struct ParsedCollider {
     pub mass: f32,
     #[serde(default)]
     pub locked: bool,
+
+    #[serde(default)]
+    pub vertex_resolution: UVec3,
+    #[serde(default)]
+    pub vertices: Vec<Vec3>,
 
     #[serde(default)]
     pub forces: ParsedForces,

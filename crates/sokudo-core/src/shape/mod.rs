@@ -1,5 +1,5 @@
 use cuboid::CuboidShape;
-use glam::Vec3;
+use glam::{UVec3, Vec3};
 use sokudo_io::read::collider::ParsedShape;
 
 pub mod cuboid;
@@ -33,20 +33,7 @@ pub trait AbstractShape {
         Vec3::new(d_sd_dx, d_sd_dy, d_sd_dz).normalize_or_zero()
     }
 
-    /// Projects the given `point` onto the surface of this [`Shape`].
-    fn exterior_point(&self, point: Vec3) -> Vec3 {
-        point - self.sd_gradient(point) * self.sd(point)
-    }
-
-    /// Tests whether or not the given `point` intersects this [`Shape`].
-    fn intersects(&self, point: Vec3) -> bool {
-        self.sd(point) <= 0.0
-    }
-
-    /// The starting points used to test intersections.
-    // TODO: Decompose SDFs into OBBs and intersect those. Centers of intersecting OBBs are
-    // starting points.
-    fn starting_points(&self) -> Vec<Vec3>;
+    fn vertices(&self, resolution: UVec3) -> Vec<Vec3>;
 
     fn moments(&self, scale: Vec3) -> Vec3;
 }
@@ -69,9 +56,9 @@ impl AbstractShape for Shape {
         }
     }
 
-    fn starting_points(&self) -> Vec<Vec3> {
+    fn vertices(&self, resolution: UVec3) -> Vec<Vec3> {
         match self {
-            Shape::Cuboid(c) => c.starting_points(),
+            Shape::Cuboid(c) => c.vertices(resolution),
         }
     }
 

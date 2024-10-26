@@ -1,4 +1,4 @@
-use glam::{Mat3, Vec3};
+use glam::{Mat3, UVec3, Vec3};
 use sokudo_io::{read::collider::{ParsedCollider, ParsedForces, ParsedMaterial}, write::{collider::WriteCollider, inspect::InspectElements}};
 
 use crate::{shape::{AbstractShape, Shape}, transform::Transform};
@@ -22,6 +22,8 @@ pub struct Collider {
     /// This turns off gravity and gives it infinite mass. 
     pub locked: bool,
 
+    /// The resolution of the vertices, in all three dimensions.
+    pub vertex_resolution: UVec3,
     /// The object's moments of inertia, represented as the three principle axes.
     pub moments: Vec3,
 
@@ -36,8 +38,8 @@ pub struct Collider {
     /// The acceleration of this collider, in m/s².
     pub acceleration: Vec3,
 
-    /// The precomputed starting points to test for intersections on this collider.
-    starting_points: Vec<Vec3>,
+    /// The precomputed vertices to test for intersections on this collider.
+    pub vertices: Vec<Vec3>,
 }
 
 #[derive(Debug)]
@@ -56,101 +58,41 @@ pub struct Material {
 }
 
 impl Collider {
-    const MAX_GRADIENT_DESCENT_STEPS: u32 = 2500;
-    const GRADIENT_DESCENT_STEP_SIZE: f32 = 0.1;
-    const GRADIENT_DESCENT_EPSILON: f32 = 0.01 * 0.01;
-
     /// Simulates the collision between two [`Collider`]s, applying the necessary forces to resolve
     /// the collision if necessary.
     pub fn collide(&mut self, other: &mut Self, inspector: &mut InspectElements) {
-        let mut intersection = None;
+        let mut vertices = self.vertices.as_ptr();
 
-        for point in self.starting_points().chain(other.starting_points()) {
-            let closest = self.find_collision_point(other, point);
-            if self.sd(closest) <= 0.0 && other.sd(closest) <= 0.0 {
-                intersection = Some(closest);
-                break;
+        for _ in 0..self.vertices.len() {
+            let vertex = unsafe { *vertices };
+            unsafe {
+                vertices = vertices.add(1);
             }
-        }
 
-        let Some(intersection) = intersection else {
-            return;
-        };
+            let vertex = self.transform.globalize(vertex);
 
-        let p_self = self.find_deepest_contact(other, intersection);
-        let p_other = other.find_deepest_contact(self, intersection);
-
-        let n_self = other.sd_gradient(p_self);
-        let n_other = self.sd_gradient(p_other);
-
-        let d_self = other.sd(p_self).abs();
-        let d_other = self.sd(p_other).abs();
-
-        let f_self = n_self * d_self * 1000.0;
-        let f_other = n_other * d_other * 1000.0;
-
-        inspector.add_point("isect", intersection);
-
-        inspector.add_point("p1", p_self);
-        inspector.add_point("p2", p_other);
-
-        inspector.add_ray("n1", p_self, n_self * d_self);
-        inspector.add_ray("n2", p_other, n_other * d_other);
-
-        self.apply_force(p_self, f_self - f_other);
-        other.apply_force(p_other, f_other - f_self);
-    }
-
-    /// Incrementally finds an intersection point or closest point between two [`Collider`]s 
-    /// using gradient descent starting at the given `point`.
-    fn find_collision_point(&self, other: &Self, mut point: Vec3) -> Vec3 {
-        let mut step = 0;
-
-        while (self.sd(point) > 0.0 || other.sd(point) > 0.0) 
-            && step < Self::MAX_GRADIENT_DESCENT_STEPS
-        {
-            step += 1;
-
-            if self.sd(point) > 0.0 {
-                point -= self.sd_gradient(point) * self.sd(point);
-            } else {
-                point -= Self::GRADIENT_DESCENT_STEP_SIZE * other.sd_gradient(point);
-                if self.sd(point) > 0.0 {
-                    point -= self.sd_gradient(point) * self.sd(point);
-                }
+            // Ignore if no intersection.
+            if other.sd(vertex) > 0.0 {
+                continue;
             }
+
+            // Project the vertex onto the closest point on the surface of the other SDF.
+            let exterior_point = vertex - other.sd_gradient(vertex) * other.sd(vertex);
+
+            // Find the escape vector of the vertex.
+            let d = exterior_point - vertex;
+
+            self.apply_force(vertex, d * 1000.0);
+            other.apply_force(vertex, -d * 1000.0);
+
+            inspector.add_point(format!("vertex_{}", vertices as usize), vertex);
         }
-
-        point
     }
 
-    /// Incrementally finds the deepest intersection of this collider in relation to `other` using
-    /// gradient descent starting at the given `point`.
-    fn find_deepest_contact(&self, other: &Self, mut point: Vec3) -> Vec3 {
-        let mut step = 0;
-        let mut prev_point = point + 100.0;
-
-        while (prev_point - point).length_squared() > Self::GRADIENT_DESCENT_EPSILON
-            && step < Self::MAX_GRADIENT_DESCENT_STEPS
-        {
-            prev_point = point;
-            step += 1;
-
-            point -= Self::GRADIENT_DESCENT_STEP_SIZE * other.sd_gradient(point);
-            if self.sd(point) > 0.0 {
-                point -= self.sd_gradient(point) * self.sd(point);
-            }
+    pub fn compute_vertices(&mut self) {
+        if self.vertices.is_empty() {
+            self.vertices = self.shape.vertices(self.vertex_resolution);
         }
-
-        point
-    }
-
-    pub fn set_starting_points(&mut self) {
-        self.starting_points = self.shape.starting_points();
-    }
-
-    fn starting_points(&self) -> impl Iterator<Item = Vec3> + '_ {
-        self.starting_points.iter().map(|&p| self.transform.globalize(p)) 
     }
 
     /// The signed distance from the given `point` to this [`Collider`], where the given `point` is
@@ -207,6 +149,11 @@ impl From<ParsedCollider> for Collider {
             material: value.material.into(),
             locked: value.locked,
 
+            vertex_resolution: if value.vertex_resolution == UVec3::ZERO {
+                UVec3::ONE
+            } else {
+                value.vertex_resolution
+            },
             moments: Vec3::ZERO,
 
             forces: value.forces.into(),
@@ -215,7 +162,7 @@ impl From<ParsedCollider> for Collider {
             angular_momentum: value.angular_momentum,
             acceleration: value.acceleration,
 
-            starting_points: Vec::new(),
+            vertices: value.vertices,
         }
     }
 }
