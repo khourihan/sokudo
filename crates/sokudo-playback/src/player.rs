@@ -137,7 +137,7 @@ fn setup_initial_state(
         match &collider.body {
             ParsedColliderBody::Particle(_) => {
                 let mesh = Mesh::from(Sphere::new(0.1));
-                let material = StandardMaterial::from_color(Color::srgba(0.0, 0.0, 1.0, 0.8));
+                let material = StandardMaterial::from_color(Color::srgba(0.0, 0.0, 1.0, 1.0));
 
                 let entity = commands.spawn((
                     PbrBundle {
@@ -161,7 +161,7 @@ fn setup_initial_state(
                     ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
                 };
 
-                let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.8));
+                let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 1.0));
 
                 let entity = commands.spawn((
                     PbrBundle {

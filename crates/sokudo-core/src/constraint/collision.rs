@@ -12,12 +12,13 @@ pub struct ParticleCollisionConstraint {
 }
 
 impl Constraint for ParticleCollisionConstraint {
+    #[inline]
     fn bodies(&self) -> Vec<ColliderId> {
         vec![self.particle, self.rb]
     }
 
     fn c(&self, bodies: &[&Collider]) -> f32 {
-        let [particle, rb] = bodies else { return 0.0 };
+        let [particle, rb] = *bodies else { return 0.0 };
 
         let ColliderBody::Rigid(ref rb_body) = rb.body else {
             return 0.0;
@@ -27,7 +28,7 @@ impl Constraint for ParticleCollisionConstraint {
     }
 
     fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3> {
-        let [particle, rb] = bodies else { return vec![] };
+        let [particle, rb] = *bodies else { return vec![] };
 
         let ColliderBody::Rigid(ref rb_body) = rb.body else {
             return vec![];
@@ -38,7 +39,7 @@ impl Constraint for ParticleCollisionConstraint {
     }
 
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32> {
-        let [particle, rb] = bodies else { return vec![] };
+        let [particle, rb] = *bodies else { return vec![] };
 
         let ColliderBody::Particle(ref particle_body) = particle.body else {
             return vec![];

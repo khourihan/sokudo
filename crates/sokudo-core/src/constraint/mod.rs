@@ -3,8 +3,10 @@ use glam::Vec3;
 use crate::collider::{Collider, ColliderId};
 
 pub mod collision;
+pub mod restitution;
 
 pub trait Constraint {
+    /// The participating bodies of this constraint.
     // TODO: Possibly remove need to allocate onto Vec<T>?
     fn bodies(&self) -> Vec<ColliderId>;
 
@@ -20,7 +22,17 @@ pub trait Constraint {
     /// cooresponding body by one unit.
     fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3>;
 
+    /// The inverse masses of the participating bodies.
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32>;
 
+    /// The inverse stiffness of this constraint.
     fn compliance(&self) -> f32;
+}
+
+pub trait VelocityConstraint {
+    /// The participating bodies of this constraint.
+    fn bodies(&self) -> Vec<ColliderId>;
+
+    /// Solve the velocity constraint, applying the required impulses.
+    fn solve(&self, bodies: std::vec::IntoIter<&mut Collider>);
 }

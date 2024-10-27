@@ -1,7 +1,7 @@
 use glam::Vec3;
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, Constraint}, rigid_body::RigidBody};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, restitution::ParticleRestitutionConstraint, Constraint, VelocityConstraint}, rigid_body::RigidBody};
 
 pub struct World {
     pub steps: u32,
@@ -11,6 +11,8 @@ pub struct World {
 
     pub constraints: Vec<Box<dyn Constraint>>,
     pub collision_constraints: Vec<Box<dyn Constraint>>,
+    pub velocity_constraints: Vec<Box<dyn VelocityConstraint>>,
+    pub velocity_collision_constraints: Vec<Box<dyn VelocityConstraint>>,
     pub lagrange: Vec<f32>,
 
     pub inspector: InspectElements,
@@ -53,7 +55,7 @@ impl World {
             collider.velocity = (collider.position - collider.previous_position) / self.dt;
         }
 
-        // TODO: Solve velocity constraints
+        self.solve_velocities();
 
         self.sync_transforms();
     }
@@ -96,9 +98,22 @@ impl World {
             }
         }
     }
+    
+    fn solve_velocities(&mut self) {
+        for constraint in self.velocity_constraints.iter().chain(self.velocity_collision_constraints.iter()) {
+            let bodies: Vec<_> = unsafe {
+                constraint.bodies().into_iter()
+                    .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
+                    .collect()
+            };
+
+            constraint.solve(bodies.into_iter());
+        }
+    }
 
     fn create_collisions(&mut self) {
         self.collision_constraints.clear();
+        self.velocity_collision_constraints.clear();
 
         for i in 0..self.colliders.len() {
             for j in 0..self.colliders.len() {
@@ -119,26 +134,40 @@ impl World {
                             continue;
                         }
 
-                        let constraint = ParticleCollisionConstraint {
+                        let collision = ParticleCollisionConstraint {
                             particle: id_a,
                             rb: id_b,
                             compliance: 0.0,
                         };
 
-                        self.collision_constraints.push(Box::new(constraint));
+                        let restitution = ParticleRestitutionConstraint {
+                            particle: id_a,
+                            rb: id_b,
+                            coefficient: 1.0,
+                        };
+
+                        self.collision_constraints.push(Box::new(collision));
+                        self.velocity_collision_constraints.push(Box::new(restitution));
                     },
                     (ColliderBody::Rigid(rb), ColliderBody::Particle(_particle)) => {
                         if rb.sd(b.position) > 0.0 {
                             continue;
                         }
 
-                        let constraint = ParticleCollisionConstraint {
+                        let collision = ParticleCollisionConstraint {
                             particle: id_b,
                             rb: id_a,
                             compliance: 0.0,
                         };
 
-                        self.collision_constraints.push(Box::new(constraint));
+                        let restitution = ParticleRestitutionConstraint {
+                            particle: id_b,
+                            rb: id_a,
+                            coefficient: 1.0,
+                        };
+
+                        self.collision_constraints.push(Box::new(collision));
+                        self.velocity_collision_constraints.push(Box::new(restitution));
                     },
                     (ColliderBody::Rigid(_rb1), ColliderBody::Rigid(_rb2)) => {
                         todo!();
@@ -174,6 +203,8 @@ impl From<ParsedWorld> for World {
 
             constraints: Vec::new(),
             collision_constraints: Vec::new(),
+            velocity_constraints: Vec::new(),
+            velocity_collision_constraints: Vec::new(),
             lagrange: Vec::new(),
 
             inspector: InspectElements::default(),
