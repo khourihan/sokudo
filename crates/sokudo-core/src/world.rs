@@ -8,7 +8,11 @@ pub struct World {
     pub dt: f32,
     pub gravity: Vec3,
     pub colliders: Vec<Collider>,
-    pub collision_constraints: Vec<ParticleCollisionConstraint>,
+
+    pub constraints: Vec<Box<dyn Constraint>>,
+    pub collision_constraints: Vec<Box<dyn Constraint>>,
+    pub lagrange: Vec<f32>,
+
     pub inspector: InspectElements,
 }
 
@@ -35,12 +39,14 @@ impl World {
             collider.previous_position = collider.position;
             collider.velocity += self.dt * external_forces / mass;
             collider.position += self.dt * collider.velocity;
+            collider.previous_velocity = collider.velocity;
         }
 
         // TODO: Narrow phase
 
-        self.solve_collisions();
-        // TODO: Solve position constraints
+        self.create_collisions();
+        self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
+        self.solve_constraints();
 
         // Update velocities
         for collider in self.colliders.iter_mut() {
@@ -52,58 +58,91 @@ impl World {
         self.sync_transforms();
     }
 
-    fn solve_collisions(&mut self) {
+    fn solve_constraints(&mut self) {
+        for (constraint, lagrange) in self.constraints.iter().chain(self.collision_constraints.iter()).zip(self.lagrange.iter_mut()) {
+            let bodies: Vec<_> = unsafe {
+                constraint.bodies().into_iter()
+                    .map(|id| self.colliders.get_unchecked(id.0 as usize))
+                    .collect()
+            };
+
+            let c = constraint.c(&bodies);
+            let gradients = constraint.c_gradients(&bodies);
+            let inverse_masses = constraint.inverse_masses(&bodies);
+
+            let w_sum = inverse_masses
+                .iter()
+                .zip(gradients.iter())
+                .fold(0.0, |acc, (&w, &g)| acc + w * g.length_squared());
+
+            let delta_lagrange = if w_sum > f32::EPSILON {
+                let tilde_compliance = constraint.compliance() / (self.dt * self.dt);
+                (-c - tilde_compliance * *lagrange) / (w_sum + tilde_compliance)
+            } else {
+                0.0
+            };
+
+            *lagrange += delta_lagrange;
+
+            let bodies = unsafe {
+                constraint.bodies().into_iter()
+                    .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
+                    .zip(gradients.into_iter())
+                    .zip(inverse_masses.into_iter())
+            };
+
+            for ((body, gradient), inv_mass) in bodies {
+                body.position += delta_lagrange * inv_mass * gradient;
+            }
+        }
+    }
+
+    fn create_collisions(&mut self) {
         self.collision_constraints.clear();
 
         for i in 0..self.colliders.len() {
             for j in 0..self.colliders.len() {
-                if i == j {
+                if i >= j {
                     continue;
                 }
 
                 let id_a = ColliderId::new(i);
                 let id_b = ColliderId::new(j);
 
-                unsafe {
-                    let a = &mut *(self.colliders.get_unchecked_mut(i) as *mut Collider);
-                    let b = &mut *(self.colliders.get_unchecked_mut(j) as *mut Collider);
+                let a = unsafe { self.colliders.get_unchecked(i) };
+                let b = unsafe { self.colliders.get_unchecked(j) };
 
-                    match (&mut a.body, &mut b.body) {
-                        (ColliderBody::Particle(_), ColliderBody::Particle(_)) => (),
-                        (ColliderBody::Particle(particle), ColliderBody::Rigid(rb)) => {
-                            if rb.sd(a.position) > 0.0 {
-                                continue;
-                            }
+                match (&a.body, &b.body) {
+                    (ColliderBody::Particle(_), ColliderBody::Particle(_)) => (),
+                    (ColliderBody::Particle(_particle), ColliderBody::Rigid(rb)) => {
+                        if rb.sd(a.position) > 0.0 {
+                            continue;
+                        }
 
-                            let constraint = ParticleCollisionConstraint {
-                                particle: id_a,
-                                rb: id_b,
-                                compliance: 0.0,
-                            };
+                        let constraint = ParticleCollisionConstraint {
+                            particle: id_a,
+                            rb: id_b,
+                            compliance: 0.0,
+                        };
 
-                            constraint.solve([a, b], self.dt);
+                        self.collision_constraints.push(Box::new(constraint));
+                    },
+                    (ColliderBody::Rigid(rb), ColliderBody::Particle(_particle)) => {
+                        if rb.sd(b.position) > 0.0 {
+                            continue;
+                        }
 
-                            self.collision_constraints.push(constraint);
-                        },
-                        (ColliderBody::Rigid(rb), ColliderBody::Particle(particle)) => {
-                            if rb.sd(b.position) > 0.0 {
-                                continue;
-                            }
+                        let constraint = ParticleCollisionConstraint {
+                            particle: id_b,
+                            rb: id_a,
+                            compliance: 0.0,
+                        };
 
-                            let constraint = ParticleCollisionConstraint {
-                                particle: id_b,
-                                rb: id_a,
-                                compliance: 0.0,
-                            };
-
-                            constraint.solve([b, a], self.dt);
-
-                            self.collision_constraints.push(constraint);
-                        },
-                        (ColliderBody::Rigid(rb1), ColliderBody::Rigid(rb2)) => {
-
-                        },
-                    }
+                        self.collision_constraints.push(Box::new(constraint));
+                    },
+                    (ColliderBody::Rigid(_rb1), ColliderBody::Rigid(_rb2)) => {
+                        todo!();
+                    },
                 }
             }
         }
@@ -132,7 +171,11 @@ impl From<ParsedWorld> for World {
             dt: value.dt,
             gravity: value.gravity,
             colliders: value.colliders.into_iter().map(Collider::from).collect(),
+
+            constraints: Vec::new(),
             collision_constraints: Vec::new(),
+            lagrange: Vec::new(),
+
             inspector: InspectElements::default(),
         }
     }

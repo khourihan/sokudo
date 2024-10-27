@@ -4,30 +4,23 @@ use crate::collider::{Collider, ColliderId};
 
 pub mod collision;
 
-pub trait Constraint<const N_BODIES: usize> {
-    fn bodies(&self) -> [ColliderId; N_BODIES];
+pub trait Constraint {
+    // TODO: Possibly remove need to allocate onto Vec<T>?
+    fn bodies(&self) -> Vec<ColliderId>;
 
-    fn solve(&self, bodies: [&mut Collider; N_BODIES], dt: f32);
-}
+    /// Computes the constraint error (C).
+    ///
+    /// This value should be exactly zero when the constraint is satisfied.
+    fn c(&self, bodies: &[&Collider]) -> f32;
 
-pub fn compute_lagrange_update<const N: usize>(
-    lagrange: f32,
-    c: f32,
-    gradients: [Vec3; N],
-    inv_masses: [f32; N],
-    compliance: f32,
-    dt: f32,
-) -> f32 {
-    let w_sum = inv_masses
-        .iter()
-        .enumerate()
-        .fold(0.0, |acc, (i, &w)| acc + w * gradients[i].length_squared());
+    /// The gradient of the constraint (∇C) for each of the bodies.
+    ///
+    /// The direction of the gradient represents the direction in which C increases the most.
+    /// The length of the gradient represents the amount by which C changes when moving its
+    /// cooresponding body by one unit.
+    fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3>;
 
-    if w_sum <= f32::EPSILON {
-        return 0.0;
-    }
+    fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32>;
 
-    let tilde_compliance = compliance / (dt * dt);
-
-    (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
+    fn compliance(&self) -> f32;
 }

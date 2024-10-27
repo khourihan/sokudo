@@ -1,3 +1,5 @@
+use std::{ops::{Index, IndexMut}, slice::SliceIndex};
+
 use glam::Vec3;
 use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody}, write::{collider::WriteCollider, inspect::InspectElements, transform::WriteTransform}};
 
@@ -16,10 +18,11 @@ pub struct Collider {
     pub position: Vec3,
     pub previous_position: Vec3,
     pub velocity: Vec3,
+    pub previous_velocity: Vec3,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ColliderId(u32);
+pub struct ColliderId(pub u32);
 
 impl ColliderId {
     pub fn new(i: usize) -> ColliderId {
@@ -31,13 +34,6 @@ impl ColliderId {
 pub enum ColliderBody {
     Particle(Particle),
     Rigid(RigidBody),
-}
-
-impl Collider {
-    /// Simulates the collision between two [`Collider`]s, applying the necessary forces to resolve
-    /// the collision if necessary.
-    pub fn collide(&mut self, other: &mut Self, inspector: &mut InspectElements) {
-    }
 }
 
 impl ColliderBody {
@@ -60,6 +56,7 @@ impl From<ParsedCollider> for Collider {
             position: value.position,
             previous_position: value.position,
             velocity: value.velocity,
+            previous_velocity: value.velocity,
         }
     }
 }

@@ -1,6 +1,8 @@
+use glam::Vec3;
+
 use crate::collider::{Collider, ColliderBody, ColliderId};
 
-use super::{compute_lagrange_update, Constraint};
+use super::Constraint;
 
 pub struct ParticleCollisionConstraint {
     pub particle: ColliderId,
@@ -9,48 +11,53 @@ pub struct ParticleCollisionConstraint {
     pub compliance: f32,
 }
 
-impl Constraint<2> for ParticleCollisionConstraint {
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.particle, self.rb]
+impl Constraint for ParticleCollisionConstraint {
+    fn bodies(&self) -> Vec<ColliderId> {
+        vec![self.particle, self.rb]
     }
 
-    fn solve(&self, bodies: [&mut Collider; 2], dt: f32) {
-        let [particle, rb] = bodies;
-        
-        let ColliderBody::Particle(particle_body) = &particle.body else {
-            return;
+    fn c(&self, bodies: &[&Collider]) -> f32 {
+        let [particle, rb] = bodies else { return 0.0 };
+
+        let ColliderBody::Rigid(ref rb_body) = rb.body else {
+            return 0.0;
         };
 
-        let ColliderBody::Rigid(rb_body) = &rb.body else {
-            return;
+        rb_body.sd(particle.position).abs()
+    }
+
+    fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3> {
+        let [particle, rb] = bodies else { return vec![] };
+
+        let ColliderBody::Rigid(ref rb_body) = rb.body else {
+            return vec![];
         };
 
-        let depth = rb_body.sd(particle.position).abs();
-        let n = -rb_body.sd_gradient(particle.position) * rb_body.sd(particle.position);
-        
-        // TODO: Compute generalized inverse mass for rigid body
-        let w1 = 1.0 / particle_body.mass;
-        let w2 = 1.0 / rb_body.mass;
+        let n = rb_body.sd_gradient(particle.position);
+        vec![-n, n]
+    }
 
-        let gradients = [n, -n];
-        let w = [w1, w2];
+    fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32> {
+        let [particle, rb] = bodies else { return vec![] };
 
-        let delta_lagrange = compute_lagrange_update(0.0, depth, gradients, w, self.compliance, dt);
-        let d = delta_lagrange * n;
+        let ColliderBody::Particle(ref particle_body) = particle.body else {
+            return vec![];
+        };
 
-        match (particle.locked, rb.locked) {
-            (true, true) => (),
-            (false, false) => {
-                particle.position -= d * 0.5;
-                rb.position += d * 0.5;
-            },
-            (false, true) => {
-                particle.position -= d;
-            },
-            (true, false) => {
-                rb.position += d;
-            },
-        }
+        let ColliderBody::Rigid(ref rb_body) = rb.body else {
+            return vec![];
+        };
+
+        // TODO: Correct generalized inverse mass for rigid body
+        let w1 = if particle.locked { 0.0 } else { 1.0 / particle_body.mass };
+        let w2 = if rb.locked { 0.0 } else { 1.0 / rb_body.mass };
+
+        vec![w1, w2]
+    }
+
+    #[inline]
+    fn compliance(&self) -> f32 {
+        self.compliance
     }
 }
 
