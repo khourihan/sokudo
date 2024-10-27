@@ -2,7 +2,7 @@ use std::f32::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6};
 
 use bevy::{prelude::*, utils::HashMap};
 use bevy_mod_picking::PickableBundle;
-use sokudo_io::{read::{collider::ParsedShape, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
+use sokudo_io::{read::{collider::{ParsedCollider, ParsedColliderBody, ParsedShape}, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
 
 use crate::camera::PanOrbitState;
 
@@ -134,41 +134,66 @@ fn setup_initial_state(
     delta_time.dt = world.world.dt;
 
     for collider in world.world.colliders.iter() {
-        let mesh: Mesh = match collider.shape {
-            ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
-        };
+        match &collider.body {
+            ParsedColliderBody::Particle(_) => {
+                let mesh = Mesh::from(Sphere::new(0.1));
+                let material = StandardMaterial::from_color(Color::srgba(0.0, 0.0, 1.0, 0.8));
 
-        let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.8));
+                let entity = commands.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material: materials.add(material),
+                        transform: Transform::from_xyz(
+                            collider.position.x,
+                            collider.position.y,
+                            collider.position.z,
+                        ),
+                        ..default()
+                    },
+                    Collider,
+                    PickableBundle::default(),
+                )).id();
 
-        let entity = commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(mesh),
-                material: materials.add(material),
-                transform: Transform {
-                    translation: Vec3::new(
-                        collider.transform.translate.x,
-                        collider.transform.translate.y,
-                        collider.transform.translate.z,
-                    ),
-                    rotation: Quat::from_xyzw(
-                        collider.transform.rotate.x,
-                        collider.transform.rotate.y,
-                        collider.transform.rotate.z,
-                        collider.transform.rotate.w,
-                    ),
-                    scale: Vec3::new(
-                        collider.transform.scale.x,
-                        collider.transform.scale.y,
-                        collider.transform.scale.z,
-                    ),
-                },
-                ..default()
+                collider_entities.map.insert(collider.id, entity);
             },
-            Collider,
-            PickableBundle::default(),
-        )).id();
+            ParsedColliderBody::RigidBody(rb) => {
+                let mesh: Mesh = match rb.shape {
+                    ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
+                };
 
-        collider_entities.map.insert(collider.id, entity);
+                let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.8));
+
+                let entity = commands.spawn((
+                    PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material: materials.add(material),
+                        transform: Transform {
+                            translation: Vec3::new(
+                                rb.transform.translate.x,
+                                rb.transform.translate.y,
+                                rb.transform.translate.z,
+                            ),
+                            rotation: Quat::from_xyzw(
+                                rb.transform.rotate.x,
+                                rb.transform.rotate.y,
+                                rb.transform.rotate.z,
+                                rb.transform.rotate.w,
+                            ),
+                            scale: Vec3::new(
+                                rb.transform.scale.x,
+                                rb.transform.scale.y,
+                                rb.transform.scale.z,
+                            ),
+                        },
+                        ..default()
+                    },
+                    Collider,
+                    PickableBundle::default(),
+                )).id();
+
+                collider_entities.map.insert(collider.id, entity);
+            },
+        }
     }
 }
 

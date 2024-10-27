@@ -1,6 +1,6 @@
 use std::{fs, io, path};
 
-use collider::ParsedCollider;
+use collider::{ParsedCollider, ParsedColliderBody, RawCollider};
 use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
@@ -21,12 +21,20 @@ pub enum ParseError {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename = "World")]
+pub(crate) struct RawWorld {
+    steps: u32,
+    dt: f32,
+    gravity: Vec3,
+
+    #[serde(default)]
+    colliders: Vec<RawCollider>,
+}
+
+#[derive(Debug)]
 pub struct ParsedWorld {
     pub steps: u32,
     pub dt: f32,
     pub gravity: Vec3,
-
-    #[serde(default)]
     pub colliders: Vec<ParsedCollider>,
 }
 
@@ -36,12 +44,37 @@ impl ParsedWorld {
         P: AsRef<path::Path>,
     {
         let file = fs::File::open(path)?;
-        let mut world: ParsedWorld = ron::de::from_reader(file)?;
-        
-        for (id, collider) in world.colliders.iter_mut().enumerate() {
-            collider.id = id as u32;
-        }
+        let raw_world: RawWorld = ron::de::from_reader(file)?;
+        let world = ParsedWorld::from(raw_world);
 
         Ok(world)
+    }
+}
+
+impl From<RawWorld> for ParsedWorld {
+    fn from(raw: RawWorld) -> Self {
+        ParsedWorld {
+            steps: raw.steps,
+            dt: raw.dt,
+            gravity: raw.gravity,
+            colliders: raw.colliders.into_iter().enumerate().map(|(i, collider)| {
+                ParsedCollider {
+                    id: i as u32,
+                    position: match collider {
+                        RawCollider::Particle { position, .. } => position,
+                        RawCollider::RigidBody { ref transform, .. } => transform.translate,
+                    },
+                    velocity: match collider {
+                        RawCollider::Particle { velocity, .. } => velocity,
+                        RawCollider::RigidBody { velocity, .. } => velocity,
+                    },
+                    locked: match collider {
+                        RawCollider::Particle { locked, .. } => locked,
+                        RawCollider::RigidBody { locked, .. } => locked,
+                    },
+                    body: ParsedColliderBody::from(collider),
+                }
+            }).collect(),
+        }
     }
 }

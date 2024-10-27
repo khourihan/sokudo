@@ -21,7 +21,7 @@ pub enum PlaybackError {
 
 pub fn play<P>(world_path: P, history_path: P) -> Result<(), PlaybackError>
 where
-    P: AsRef<path::Path>
+    P: AsRef<path::Path>,
 {
     let world = ParsedWorld::read(world_path)?;
     let history = ReadWorldStateHistory::read(history_path)?;
