@@ -1,4 +1,4 @@
-use glam::UVec3;
+use glam::{UVec3, Vec3};
 
 pub struct DefaultOptions;
 
@@ -14,17 +14,12 @@ impl DefaultOptions {
     }
 
     #[inline(always)]
-    pub const fn material_roughness() -> f32 {
-        1.0
+    pub const fn scale() -> Vec3 {
+        Vec3::ONE
     }
 
     #[inline(always)]
-    pub const fn material_resilience() -> f32 {
-        0.2
-    }
-
-    #[inline(always)]
-    pub const fn material_hardness() -> f32 {
+    pub const fn material_restitution() -> f32 {
         1.0
     }
 }

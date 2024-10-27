@@ -5,7 +5,7 @@ use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
 
-pub mod transform;
+mod types;
 pub mod collider;
 mod defaults;
 
@@ -62,7 +62,7 @@ impl From<RawWorld> for ParsedWorld {
                     id: i as u32,
                     position: match collider {
                         RawCollider::Particle { position, .. } => position,
-                        RawCollider::RigidBody { ref transform, .. } => transform.translate,
+                        RawCollider::RigidBody { position, .. } => position,
                     },
                     velocity: match collider {
                         RawCollider::Particle { velocity, .. } => velocity,
@@ -71,6 +71,10 @@ impl From<RawWorld> for ParsedWorld {
                     locked: match collider {
                         RawCollider::Particle { locked, .. } => locked,
                         RawCollider::RigidBody { locked, .. } => locked,
+                    },
+                    material: match collider {
+                        RawCollider::Particle { material, .. } => material,
+                        RawCollider::RigidBody { material, .. } => material,
                     },
                     body: ParsedColliderBody::from(collider),
                 }

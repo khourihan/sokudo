@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::{collider::{Collider, ColliderBody, ColliderId}, contact::Contact};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, contact::ParticleContact};
 
 use super::Constraint;
 
@@ -8,7 +8,7 @@ pub struct ParticleCollisionConstraint {
     pub particle: ColliderId,
     pub rb: ColliderId,
 
-    pub contact: Contact,
+    pub contact: ParticleContact,
     pub compliance: f32,
 }
 

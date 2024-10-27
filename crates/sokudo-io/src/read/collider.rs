@@ -1,13 +1,17 @@
-use glam::{UVec3, Vec3};
-use serde::{de::{EnumAccess, Error, MapAccess, VariantAccess, Visitor}, Deserialize, Deserializer};
+use glam::{Quat, UVec3, Vec3};
+use serde::Deserialize;
 
-use crate::read::{defaults::DefaultOptions, transform::ParsedTransform};
+use crate::read::defaults::DefaultOptions;
+
+use super::types::RawRotation;
 
 #[derive(Debug)]
 pub struct ParsedCollider {
     pub id: u32,
     pub body: ParsedColliderBody,
     pub locked: bool,
+
+    pub material: ParsedMaterial,
     
     pub position: Vec3,
     pub velocity: Vec3,
@@ -30,6 +34,8 @@ pub(crate) enum RawCollider {
         #[serde(default)]
         velocity: Vec3,
 
+        #[serde(default)]
+        material: ParsedMaterial,
         #[serde(default = "DefaultOptions::mass")]
         mass: f32,
     },
@@ -37,13 +43,23 @@ pub(crate) enum RawCollider {
         #[serde(default)]
         locked: bool,
         #[serde(default)]
-        transform: ParsedTransform,
+        position: Vec3,
         #[serde(default)]
         velocity: Vec3,
 
-        shape: ParsedShape,
+        #[serde(default)]
+        rotation: RawRotation,
+        #[serde(default)]
+        angular_velocity: Vec3,
+
+        #[serde(default)]
+        material: ParsedMaterial,
         #[serde(default = "DefaultOptions::mass")]
         mass: f32,
+
+        shape: ParsedShape,
+        #[serde(default = "DefaultOptions::scale")]
+        scale: Vec3,
         #[serde(default = "DefaultOptions::vertex_resolution")]
         vertex_resolution: UVec3,
         #[serde(default)]
@@ -58,21 +74,28 @@ impl From<RawCollider> for ParsedColliderBody {
                 locked: _,
                 position: _,
                 velocity: _,
+                material: _,
                 mass,
             } => ParsedColliderBody::Particle(ParsedParticle {
                 mass,
             }),
             RawCollider::RigidBody {
                 locked: _,
-                transform,
+                position: _,
                 velocity: _,
+                material: _,
+                rotation,
+                scale,
+                angular_velocity,
                 shape,
                 mass,
                 vertex_resolution,
                 vertices,
             } => ParsedColliderBody::RigidBody(ParsedRigidBody {
                 shape,
-                transform,
+                rotation: rotation.into(),
+                scale,
+                angular_velocity,
                 mass,
                 vertex_resolution,
                 vertices,
@@ -89,7 +112,9 @@ pub struct ParsedParticle {
 #[derive(Debug)]
 pub struct ParsedRigidBody {
     pub shape: ParsedShape,
-    pub transform: ParsedTransform,
+    pub rotation: Quat,
+    pub scale: Vec3,
+    pub angular_velocity: Vec3,
     pub mass: f32,
     pub vertex_resolution: UVec3,
     pub vertices: Vec<Vec3>,
@@ -99,4 +124,19 @@ pub struct ParsedRigidBody {
 #[serde(rename = "Shape")]
 pub enum ParsedShape {
     Cuboid,
+}
+
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename = "Material")]
+pub struct ParsedMaterial {
+    #[serde(default = "DefaultOptions::material_restitution")]
+    pub restitution: f32,
+}
+
+impl Default for ParsedMaterial {
+    fn default() -> Self {
+        Self {
+            restitution: DefaultOptions::material_restitution(),
+        }
+    }
 }

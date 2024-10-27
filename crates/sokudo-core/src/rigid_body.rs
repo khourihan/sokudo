@@ -1,7 +1,7 @@
 use glam::{Mat3, Quat, UVec3, Vec3};
 use sokudo_io::read::collider::ParsedRigidBody;
 
-use crate::{shape::{AbstractShape, Shape}, transform::Transform};
+use crate::shape::{AbstractShape, Shape};
 
 #[derive(Debug)]
 pub struct RigidBody {
@@ -42,7 +42,7 @@ impl RigidBody {
     }
 
     /// Compute the generalized inverse mass of this rigid body at point `r` when applying
-    /// positional correction along the vector `n` where `r` is relative to the body's center of
+    /// positional correction along the vector `n`, where `r` is relative to the body's center of
     /// mass in global coordinates.
     pub fn positional_inverse_mass(&self, r: Vec3, n: Vec3) -> f32 {
         let r_cross_n = r.cross(n);
@@ -63,11 +63,11 @@ impl From<ParsedRigidBody> for RigidBody {
             vertices: value.vertices,
 
             inertia_tensor: InertiaTensor::INFINITY,
-            previous_rotation: value.transform.rotate,
-            angular_velocity: Vec3::ZERO,
-            previous_angular_velocity: Vec3::ZERO,
-            rotation: value.transform.rotate,
-            scale: value.transform.scale,
+            previous_rotation: value.rotation,
+            angular_velocity: value.angular_velocity,
+            previous_angular_velocity: value.angular_velocity,
+            rotation: value.rotation,
+            scale: value.scale,
         }
     }
 }

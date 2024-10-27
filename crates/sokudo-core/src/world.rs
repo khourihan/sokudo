@@ -1,7 +1,7 @@
 use glam::{Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, restitution::ParticleRestitutionConstraint, Constraint, VelocityConstraint}, contact::Contact, math::skew_symmetric_mat3, rigid_body::RigidBody};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, restitution::ParticleRestitutionConstraint, Constraint, VelocityConstraint}, contact::ParticleContact, math::skew_symmetric_mat3};
 
 pub struct World {
     pub steps: u32,
@@ -101,8 +101,6 @@ impl World {
         }
 
         self.solve_velocities();
-
-        self.sync_transforms();
     }
 
     fn solve_constraints(&mut self) {
@@ -184,7 +182,7 @@ impl World {
                 match (&a.body, &b.body) {
                     (ColliderBody::Particle(_), ColliderBody::Particle(_)) => (),
                     (ColliderBody::Particle(_), ColliderBody::Rigid(_)) => {
-                        let Some(contact) = Contact::from_particle_rigid_body(a, b) else {
+                        let Some(contact) = ParticleContact::new(a, b) else {
                             continue;
                         };
 
@@ -206,7 +204,7 @@ impl World {
                         self.velocity_collision_constraints.push(Box::new(restitution));
                     },
                     (ColliderBody::Rigid(_), ColliderBody::Particle(_)) => {
-                        let Some(contact) = Contact::from_particle_rigid_body(b, a) else {
+                        let Some(contact) = ParticleContact::new(b, a) else {
                             continue;
                         };
 
@@ -231,14 +229,6 @@ impl World {
                         // todo!();
                     },
                 }
-            }
-        }
-    }
-
-    fn sync_transforms(&mut self) {
-        for collider in self.colliders.iter_mut() {
-            if let ColliderBody::Rigid(rb) = &mut collider.body {
-                // rb.transform.translate = collider.position;
             }
         }
     }

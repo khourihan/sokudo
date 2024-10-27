@@ -1,5 +1,5 @@
 use glam::{Affine3A, Mat3, Mat4, Quat, Vec3};
-use sokudo_io::{read::transform::ParsedTransform, write::transform::WriteTransform};
+use sokudo_io::write::transform::WriteTransform;
 
 /// Describes the position of an object.
 #[derive(Debug, Clone)]
@@ -221,16 +221,6 @@ impl Transform {
             translate: -self.translate,
             rotate: self.rotate.inverse(),
             scale: self.scale.recip(),
-        }
-    }
-}
-
-impl From<ParsedTransform> for Transform {
-    fn from(value: ParsedTransform) -> Self {
-        Transform {
-            translate: value.translate,
-            rotate: value.rotate,
-            scale: value.scale,
         }
     }
 }

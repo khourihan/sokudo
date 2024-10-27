@@ -2,9 +2,8 @@ use glam::Vec3;
 
 use crate::{collider::{Collider, ColliderBody}, shape::AbstractShape};
 
-// TODO: generalize for multiple contact points
 #[derive(Clone, Debug, PartialEq)]
-pub struct Contact {
+pub struct ParticleContact {
     /// Contact point in global coordinates relative to the first body's center of mass.
     pub anchor1: Vec3,
     /// Contact point in global coordinates relative to the second body's center of mass.
@@ -15,11 +14,11 @@ pub struct Contact {
     pub depth: f32,
 }
 
-impl Contact {
-    pub fn from_particle_rigid_body(
+impl ParticleContact {
+    pub fn new(
         particle: &Collider,
         rb: &Collider,
-    ) -> Option<Contact> {
+    ) -> Option<ParticleContact> {
         let ColliderBody::Rigid(rb_body) = &rb.body else {
             return None;
         };
@@ -37,18 +36,25 @@ impl Contact {
         let anchor1 = Vec3::ZERO; // point - particle.position
         let anchor2 = point - rb.position;
         
-        Some(Contact {
+        Some(ParticleContact {
             anchor1,
             anchor2,
             normal,
             depth: depth.abs(),
         })
     }
+}
 
-    pub fn from_rigid_bodies(
+#[derive(Clone, Debug, PartialEq)]
+pub struct RigidBodyContact {
+
+}
+
+impl RigidBodyContact {
+    pub fn new(
         rb1: &Collider,
         rb2: &Collider,
-    ) -> Option<Contact> {
+    ) -> Option<RigidBodyContact> {
         None
     }
 }

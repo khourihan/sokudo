@@ -2,7 +2,7 @@ use std::f32::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6};
 
 use bevy::{prelude::*, utils::HashMap};
 use bevy_mod_picking::PickableBundle;
-use sokudo_io::{read::{collider::{ParsedCollider, ParsedColliderBody, ParsedShape}, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
+use sokudo_io::{read::{collider::{ParsedColliderBody, ParsedShape}, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
 
 use crate::camera::PanOrbitState;
 
@@ -169,20 +169,20 @@ fn setup_initial_state(
                         material: materials.add(material),
                         transform: Transform {
                             translation: Vec3::new(
-                                rb.transform.translate.x,
-                                rb.transform.translate.y,
-                                rb.transform.translate.z,
+                                collider.position.x,
+                                collider.position.y,
+                                collider.position.z,
                             ),
                             rotation: Quat::from_xyzw(
-                                rb.transform.rotate.x,
-                                rb.transform.rotate.y,
-                                rb.transform.rotate.z,
-                                rb.transform.rotate.w,
+                                rb.rotation.x,
+                                rb.rotation.y,
+                                rb.rotation.z,
+                                rb.rotation.w,
                             ),
                             scale: Vec3::new(
-                                rb.transform.scale.x,
-                                rb.transform.scale.y,
-                                rb.transform.scale.z,
+                                rb.scale.x,
+                                rb.scale.y,
+                                rb.scale.z,
                             ),
                         },
                         ..default()

@@ -1,7 +1,5 @@
-use std::{ops::{Index, IndexMut}, slice::SliceIndex};
-
 use glam::Vec3;
-use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody}, write::{collider::WriteCollider, inspect::InspectElements, transform::WriteTransform}};
+use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody}, write::{collider::WriteCollider, transform::WriteTransform}};
 
 use crate::{particle::Particle, rigid_body::RigidBody};
 
