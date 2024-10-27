@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::collider::{Collider, ColliderBody, ColliderId};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, contact::Contact};
 
 use super::Constraint;
 
@@ -8,6 +8,7 @@ pub struct ParticleCollisionConstraint {
     pub particle: ColliderId,
     pub rb: ColliderId,
 
+    pub contact: Contact,
     pub compliance: f32,
 }
 
@@ -17,24 +18,12 @@ impl Constraint for ParticleCollisionConstraint {
         vec![self.particle, self.rb]
     }
 
-    fn c(&self, bodies: &[&Collider]) -> f32 {
-        let [particle, rb] = *bodies else { return 0.0 };
-
-        let ColliderBody::Rigid(ref rb_body) = rb.body else {
-            return 0.0;
-        };
-
-        rb_body.sd(particle.position).abs()
+    fn c(&self, _bodies: &[&Collider]) -> f32 {
+        self.contact.depth
     }
 
-    fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3> {
-        let [particle, rb] = *bodies else { return vec![] };
-
-        let ColliderBody::Rigid(ref rb_body) = rb.body else {
-            return vec![];
-        };
-
-        let n = rb_body.sd_gradient(particle.position);
+    fn c_gradients(&self, _bodies: &[&Collider]) -> Vec<Vec3> {
+        let n = self.contact.normal;
         vec![-n, n]
     }
 
@@ -49,11 +38,14 @@ impl Constraint for ParticleCollisionConstraint {
             return vec![];
         };
 
-        // TODO: Correct generalized inverse mass for rigid body
-        let w1 = if particle.locked { 0.0 } else { 1.0 / particle_body.mass };
-        let w2 = if rb.locked { 0.0 } else { 1.0 / rb_body.mass };
+        let w1 = if particle.locked { 0.0 } else { particle_body.inverse_mass() };
+        let w2 = if rb.locked { 0.0 } else { rb_body.positional_inverse_mass(self.contact.anchor2, self.contact.normal) };
 
         vec![w1, w2]
+    }
+
+    fn anchors(&self) -> Vec<Vec3> {
+        vec![self.contact.anchor1, self.contact.anchor2]
     }
 
     #[inline]

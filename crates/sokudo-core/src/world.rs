@@ -1,7 +1,7 @@
-use glam::Vec3;
+use glam::{Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, restitution::ParticleRestitutionConstraint, Constraint, VelocityConstraint}, rigid_body::RigidBody};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::ParticleCollisionConstraint, restitution::ParticleRestitutionConstraint, Constraint, VelocityConstraint}, contact::Contact, math::skew_symmetric_mat3, rigid_body::RigidBody};
 
 pub struct World {
     pub steps: u32,
@@ -23,7 +23,7 @@ impl World {
         for collider in self.colliders.iter_mut() {
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 rb.compute_vertices();
-                rb.compute_moments();
+                rb.compute_inertia_tensor();
             }
         }
     }
@@ -42,6 +42,45 @@ impl World {
             collider.velocity += self.dt * external_forces / mass;
             collider.position += self.dt * collider.velocity;
             collider.previous_velocity = collider.velocity;
+
+            if let ColliderBody::Rigid(rb) = &mut collider.body {
+                let external_torque = Vec3::ZERO;
+
+                rb.previous_rotation = rb.rotation;
+
+                let effective_angular_inertia = rb.global_inverse_inertia();
+                let mut delta_ang_vel = self.dt * if effective_angular_inertia.is_finite() {
+                    effective_angular_inertia.inverse() * external_torque
+                } else {
+                    Vec3::ZERO
+                };
+
+                // Solve for gyroscopic torque using a more stable and accurate implicit Euler
+                // method.
+                delta_ang_vel += {
+                    let local_inertia = rb.inertia_tensor.tensor();
+
+                    let local_ang_vel = rb.rotation.inverse() * rb.angular_velocity;
+                    let angular_momentum = local_inertia * local_ang_vel;
+
+                    let jacobian = local_inertia + self.dt
+                        * (skew_symmetric_mat3(local_ang_vel) * local_inertia
+                            - skew_symmetric_mat3(angular_momentum));
+
+                    let f = self.dt * local_ang_vel.cross(angular_momentum);
+
+                    let delta_ang_vel = -jacobian.inverse() * f;
+
+                    rb.rotation * delta_ang_vel
+                };
+
+                rb.angular_velocity += delta_ang_vel;
+
+                let delta_rot = Quat::from_scaled_axis(self.dt * rb.angular_velocity);
+                rb.rotation = (delta_rot * rb.rotation).normalize();
+
+                rb.previous_angular_velocity = rb.angular_velocity;
+            }
         }
 
         // TODO: Narrow phase
@@ -53,6 +92,12 @@ impl World {
         // Update velocities
         for collider in self.colliders.iter_mut() {
             collider.velocity = (collider.position - collider.previous_position) / self.dt;
+
+            if let ColliderBody::Rigid(rb) = &mut collider.body {
+                let delta_rot = rb.rotation * rb.previous_rotation.inverse();
+                rb.angular_velocity = 2.0 * delta_rot.xyz() / self.dt;
+                rb.angular_velocity = if delta_rot.w >= 0.0 { rb.angular_velocity } else { -rb.angular_velocity };
+            }
         }
 
         self.solve_velocities();
@@ -86,15 +131,24 @@ impl World {
 
             *lagrange += delta_lagrange;
 
+            let anchors = constraint.anchors();
+
             let bodies = unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
                     .zip(gradients.into_iter())
                     .zip(inverse_masses.into_iter())
+                    .zip(anchors.into_iter())
             };
 
-            for ((body, gradient), inv_mass) in bodies {
-                body.position += delta_lagrange * inv_mass * gradient;
+            for (((body, gradient), inv_mass), anchor) in bodies {
+                let p = delta_lagrange * gradient;
+                body.position += p * inv_mass;
+
+                if let ColliderBody::Rigid(rb) = &mut body.body {
+                    rb.rotation = rb.rotation +
+                        Quat::from_vec4(0.5 * (rb.global_inverse_inertia() * anchor.cross(p)).extend(0.0)) * rb.rotation;
+                }
             }
         }
     }
@@ -129,40 +183,44 @@ impl World {
 
                 match (&a.body, &b.body) {
                     (ColliderBody::Particle(_), ColliderBody::Particle(_)) => (),
-                    (ColliderBody::Particle(_particle), ColliderBody::Rigid(rb)) => {
-                        if rb.sd(a.position) > 0.0 {
+                    (ColliderBody::Particle(_), ColliderBody::Rigid(_)) => {
+                        let Some(contact) = Contact::from_particle_rigid_body(a, b) else {
                             continue;
-                        }
+                        };
 
                         let collision = ParticleCollisionConstraint {
                             particle: id_a,
                             rb: id_b,
+                            contact: contact.clone(),
                             compliance: 0.0,
                         };
 
                         let restitution = ParticleRestitutionConstraint {
                             particle: id_a,
                             rb: id_b,
+                            contact,
                             coefficient: 1.0,
                         };
 
                         self.collision_constraints.push(Box::new(collision));
                         self.velocity_collision_constraints.push(Box::new(restitution));
                     },
-                    (ColliderBody::Rigid(rb), ColliderBody::Particle(_particle)) => {
-                        if rb.sd(b.position) > 0.0 {
+                    (ColliderBody::Rigid(_), ColliderBody::Particle(_)) => {
+                        let Some(contact) = Contact::from_particle_rigid_body(b, a) else {
                             continue;
-                        }
+                        };
 
                         let collision = ParticleCollisionConstraint {
                             particle: id_b,
                             rb: id_a,
+                            contact: contact.clone(),
                             compliance: 0.0,
                         };
 
                         let restitution = ParticleRestitutionConstraint {
                             particle: id_b,
                             rb: id_a,
+                            contact,
                             coefficient: 1.0,
                         };
 
@@ -170,7 +228,7 @@ impl World {
                         self.velocity_collision_constraints.push(Box::new(restitution));
                     },
                     (ColliderBody::Rigid(_rb1), ColliderBody::Rigid(_rb2)) => {
-                        todo!();
+                        // todo!();
                     },
                 }
             }
@@ -180,7 +238,7 @@ impl World {
     fn sync_transforms(&mut self) {
         for collider in self.colliders.iter_mut() {
             if let ColliderBody::Rigid(rb) = &mut collider.body {
-                rb.transform.translate = collider.position;
+                // rb.transform.translate = collider.position;
             }
         }
     }

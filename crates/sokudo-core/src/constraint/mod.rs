@@ -25,6 +25,9 @@ pub trait Constraint {
     /// The inverse masses of the participating bodies.
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32>;
 
+    /// The anchors where positional impulses should be applied.
+    fn anchors(&self) -> Vec<Vec3>;
+
     /// The inverse stiffness of this constraint.
     fn compliance(&self) -> f32;
 }

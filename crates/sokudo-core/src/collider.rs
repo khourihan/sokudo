@@ -15,6 +15,7 @@ pub struct Collider {
     /// This turns off gravity and gives it infinite mass. 
     pub locked: bool,
 
+    /// The position of the collider. For rigid bodies, this is located at its center of mass.
     pub position: Vec3,
     pub previous_position: Vec3,
     pub velocity: Vec3,
@@ -74,7 +75,10 @@ impl From<&Collider> for WriteCollider {
     fn from(value: &Collider) -> Self {
         let transform = match &value.body {
             ColliderBody::Particle(_) => WriteTransform::from_translate(value.position),
-            ColliderBody::Rigid(rb) => (&rb.transform).into(),
+            ColliderBody::Rigid(rb) => WriteTransform {
+                translate: value.position,
+                rotate: rb.rotation,
+            }
         };
         
         WriteCollider {

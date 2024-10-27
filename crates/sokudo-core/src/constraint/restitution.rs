@@ -1,10 +1,12 @@
-use crate::collider::{Collider, ColliderBody, ColliderId};
+use crate::{collider::{Collider, ColliderBody, ColliderId}, contact::Contact};
 
 use super::VelocityConstraint;
 
 pub struct ParticleRestitutionConstraint {
     pub particle: ColliderId,
     pub rb: ColliderId,
+
+    pub contact: Contact,
     pub coefficient: f32,
 }
 
@@ -26,7 +28,7 @@ impl VelocityConstraint for ParticleRestitutionConstraint {
             return;
         };
 
-        let n = rb_body.sd_gradient(particle.position);
+        let n = self.contact.normal;
 
         let vdiff_prev = particle.previous_velocity - rb.previous_velocity;
         let vn_prev = n.dot(vdiff_prev);

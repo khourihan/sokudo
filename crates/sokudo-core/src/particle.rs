@@ -6,6 +6,12 @@ pub struct Particle {
     pub mass: f32,
 }
 
+impl Particle {
+    pub fn inverse_mass(&self) -> f32 {
+        1.0 / self.mass
+    }
+}
+
 impl From<ParsedParticle> for Particle {
     fn from(value: ParsedParticle) -> Self {
         Particle {
