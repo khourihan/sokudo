@@ -9,8 +9,8 @@ pub struct RigidBody {
     pub shape: Shape,
     /// The scale of the rigid body, in all three dimensions.
     pub scale: Vec3,
-    /// The mass of this rigid body.
-    pub mass: f32,
+    /// The inverse mass of this rigid body.
+    pub inverse_mass: f32,
     /// The resolution of the vertices, in all three dimensions.
     pub vertex_resolution: UVec3,
     /// The precomputed vertices to test for intersections on this rigid body.
@@ -46,7 +46,7 @@ impl RigidBody {
     /// mass in global coordinates.
     pub fn positional_inverse_mass(&self, r: Vec3, n: Vec3) -> f32 {
         let r_cross_n = r.cross(n);
-        (1.0 / self.mass) + r_cross_n.dot(self.global_inverse_inertia() * r_cross_n)
+        self.inverse_mass + r_cross_n.dot(self.global_inverse_inertia() * r_cross_n)
     }
 }
 
@@ -54,7 +54,7 @@ impl From<ParsedRigidBody> for RigidBody {
     fn from(value: ParsedRigidBody) -> Self {
         RigidBody {
             shape: value.shape.into(),
-            mass: value.mass,
+            inverse_mass: 1.0 / value.mass,
             vertex_resolution: if value.vertex_resolution == UVec3::ZERO {
                 UVec3::ONE
             } else {

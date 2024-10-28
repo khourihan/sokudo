@@ -1,7 +1,7 @@
 use glam::Vec3;
-use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody}, write::{collider::WriteCollider, transform::WriteTransform}};
+use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody, ParsedMaterial}, write::{collider::WriteCollider, transform::WriteTransform}};
 
-use crate::{particle::Particle, rigid_body::RigidBody};
+use crate::{coefficient::{Coefficient, CoefficientCombine}, particle::Particle, rigid_body::RigidBody};
 
 #[derive(Debug)]
 pub struct Collider {
@@ -13,8 +13,13 @@ pub struct Collider {
     /// This turns off gravity and gives it infinite mass. 
     pub locked: bool,
 
-    /// The position of the collider. For rigid bodies, this is located at its center of mass.
+    /// The material of this collider.
+    pub material: Material,
+
+    /// The position of the collider. For rigid bodies, this is also its center of mass.
     pub position: Vec3,
+    /// The required change in position for each substep. At the end of each step, this is added to `position`.
+    pub delta_position: Vec3,
     pub previous_position: Vec3,
     pub velocity: Vec3,
     pub previous_velocity: Vec3,
@@ -37,12 +42,17 @@ pub enum ColliderBody {
 
 impl ColliderBody {
     #[inline]
-    pub fn mass(&self) -> f32 {
+    pub fn inverse_mass(&self) -> f32 {
         match self {
-            ColliderBody::Particle(particle) => particle.mass,
-            ColliderBody::Rigid(rb) => rb.mass,
+            ColliderBody::Particle(particle) => particle.inverse_mass,
+            ColliderBody::Rigid(rb) => rb.inverse_mass,
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Material {
+    pub restitution: Coefficient,
 }
 
 impl From<ParsedCollider> for Collider {
@@ -50,9 +60,21 @@ impl From<ParsedCollider> for Collider {
         Collider {
             id: value.id,
             locked: value.locked,
-            body: value.body.into(),
+            body: {
+                let mut body = ColliderBody::from(value.body);
+                if value.locked {
+                    match &mut body {
+                        ColliderBody::Particle(particle) => particle.inverse_mass = 0.0,
+                        ColliderBody::Rigid(rigid) => rigid.inverse_mass = 0.0,
+                    }
+                }
+                body
+            },
+
+            material: value.material.into(),
 
             position: value.position,
+            delta_position: Vec3::ZERO,
             previous_position: value.position,
             velocity: value.velocity,
             previous_velocity: value.velocity,
@@ -65,6 +87,14 @@ impl From<ParsedColliderBody> for ColliderBody {
         match value {
             ParsedColliderBody::Particle(particle) => ColliderBody::Particle(particle.into()),
             ParsedColliderBody::RigidBody(rb) => ColliderBody::Rigid(rb.into()),
+        }
+    }
+}
+
+impl From<ParsedMaterial> for Material {
+    fn from(value: ParsedMaterial) -> Self {
+        Material {
+            restitution: Coefficient::new(value.restitution, CoefficientCombine::Average),
         }
     }
 }
