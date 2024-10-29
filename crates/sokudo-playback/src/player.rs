@@ -4,7 +4,7 @@ use bevy::{prelude::*, utils::HashMap};
 use bevy_mod_picking::PickableBundle;
 use sokudo_io::{read::{collider::{ParsedColliderBody, ParsedShape}, ParsedWorld}, write::{inspect::InspectFeature, ReadWorldStateHistory}};
 
-use crate::camera::PanOrbitState;
+use crate::{util::ToBevyType, camera::PanOrbitState};
 
 pub struct PlayerPlugin;
 
@@ -137,17 +137,13 @@ fn setup_initial_state(
         match &collider.body {
             ParsedColliderBody::Particle(_) => {
                 let mesh = Mesh::from(Sphere::new(0.1));
-                let material = StandardMaterial::from_color(Color::srgba(0.0, 0.0, 1.0, 1.0));
+                let material = StandardMaterial::from_color(Color::srgba(0.0, 0.0, 1.0, 0.8));
 
                 let entity = commands.spawn((
                     PbrBundle {
                         mesh: meshes.add(mesh),
                         material: materials.add(material),
-                        transform: Transform::from_xyz(
-                            collider.position.x,
-                            collider.position.y,
-                            collider.position.z,
-                        ),
+                        transform: Transform::from_translation(collider.position.to_bevy()),
                         ..default()
                     },
                     Collider,
@@ -161,29 +157,16 @@ fn setup_initial_state(
                     ParsedShape::Cuboid => Cuboid::new(1.0, 1.0, 1.0).into(),
                 };
 
-                let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 1.0));
+                let material = StandardMaterial::from_color(Color::srgba(1.0, 0.0, 0.0, 0.8));
 
                 let entity = commands.spawn((
                     PbrBundle {
                         mesh: meshes.add(mesh),
                         material: materials.add(material),
                         transform: Transform {
-                            translation: Vec3::new(
-                                collider.position.x,
-                                collider.position.y,
-                                collider.position.z,
-                            ),
-                            rotation: Quat::from_xyzw(
-                                rb.rotation.x,
-                                rb.rotation.y,
-                                rb.rotation.z,
-                                rb.rotation.w,
-                            ),
-                            scale: Vec3::new(
-                                rb.scale.x,
-                                rb.scale.y,
-                                rb.scale.z,
-                            ),
+                            translation: collider.position.to_bevy(),
+                            rotation: rb.rotation.to_bevy(),
+                            scale: rb.scale.to_bevy(),
                         },
                         ..default()
                     },
@@ -261,18 +244,8 @@ fn update_colliders(
             continue;
         };
 
-        transform.translation = Vec3::new(
-            collider.transform.translate.x,
-            collider.transform.translate.y,
-            collider.transform.translate.z,
-        );
-
-        transform.rotation = Quat::from_xyzw(
-            collider.transform.rotate.x,
-            collider.transform.rotate.y,
-            collider.transform.rotate.z,
-            collider.transform.rotate.w,
-        );
+        transform.translation = collider.transform.translate.to_bevy(); 
+        transform.rotation = collider.transform.rotate.to_bevy();
     }
 }
 
@@ -289,28 +262,14 @@ fn update_inspect_elements(
     for elem in world_state.inspector.elements.values() {
         match elem {
             InspectFeature::Point(point) => {
-                let point = Vec3::new(
-                    point.x,
-                    point.y,
-                    point.z,
-                );
-
+                let point = point.to_bevy();
                 gizmos.circle(point, Dir3::new(camera - point).unwrap(), 0.01, Color::srgb(1.0, 0.0, 0.0));
             },
             InspectFeature::Ray { origin, direction } => {
-                let origin = Vec3::new(
-                    origin.x,
-                    origin.y,
-                    origin.z,
-                );
-
-                let direction = Vec3::new(
-                    direction.x,
-                    direction.y,
-                    direction.z,
-                );
-
-                gizmos.ray(origin, direction, Color::srgb(0.0, 0.0, 1.0));
+                gizmos.ray(origin.to_bevy(), direction.to_bevy(), Color::srgb(0.0, 0.0, 1.0));
+            },
+            InspectFeature::Line { p1, p2 } => {
+                gizmos.line(p1.to_bevy(), p2.to_bevy(), Color::srgb(0.0, 1.0, 0.0));
             },
         }
     }

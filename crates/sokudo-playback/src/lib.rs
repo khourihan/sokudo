@@ -8,6 +8,7 @@ use thiserror::Error;
 
 mod player;
 mod camera;
+mod util;
 
 #[derive(Error, Debug)]
 pub enum PlaybackError {

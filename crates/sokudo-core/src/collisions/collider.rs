@@ -1,7 +1,7 @@
 use glam::Vec3;
 use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody, ParsedMaterial}, write::{collider::WriteCollider, transform::WriteTransform}};
 
-use crate::{coefficient::{Coefficient, CoefficientCombine}, particle::Particle, rigid_body::RigidBody};
+use crate::{coefficient::{Coefficient, CoefficientCombine}, collisions::{particle::Particle, rigid_body::RigidBody}};
 
 #[derive(Debug)]
 pub struct Collider {
@@ -40,6 +40,21 @@ pub enum ColliderBody {
     Rigid(RigidBody),
 }
 
+#[derive(Debug)]
+pub struct Material {
+    pub restitution: Coefficient,
+}
+
+impl Collider {
+    /// The collider's center of mass, in global space.
+    pub fn center_of_mass(&self) -> Vec3 {
+        match &self.body {
+            ColliderBody::Particle(_) => self.position,
+            ColliderBody::Rigid(rb) => self.position + rb.rotation * rb.center_of_mass,
+        }
+    }
+}
+
 impl ColliderBody {
     #[inline]
     pub fn inverse_mass(&self) -> f32 {
@@ -48,11 +63,6 @@ impl ColliderBody {
             ColliderBody::Rigid(rb) => rb.inverse_mass,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct Material {
-    pub restitution: Coefficient,
 }
 
 impl From<ParsedCollider> for Collider {

@@ -14,6 +14,11 @@ impl DefaultOptions {
     }
 
     #[inline(always)]
+    pub const fn density() -> f32 {
+        1.0
+    }
+
+    #[inline(always)]
     pub const fn scale() -> Vec3 {
         Vec3::ONE
     }

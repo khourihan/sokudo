@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+parry3d.workspace = true
 sokudo-io.workspace = true
 
 glam.workspace = true

@@ -1,4 +1,5 @@
 use glam::{Quat, UVec3, Vec3};
+use parry3d::shape::{SharedShape, TypedShape};
 use serde::Deserialize;
 
 use crate::read::defaults::DefaultOptions;
@@ -54,16 +55,12 @@ pub(crate) enum RawCollider {
 
         #[serde(default)]
         material: ParsedMaterial,
-        #[serde(default = "DefaultOptions::mass")]
-        mass: f32,
+        #[serde(default = "DefaultOptions::density")]
+        density: f32,
 
         shape: ParsedShape,
         #[serde(default = "DefaultOptions::scale")]
         scale: Vec3,
-        #[serde(default = "DefaultOptions::vertex_resolution")]
-        vertex_resolution: UVec3,
-        #[serde(default)]
-        vertices: Vec<Vec3>,
     },
 }
 
@@ -88,17 +85,13 @@ impl From<RawCollider> for ParsedColliderBody {
                 scale,
                 angular_velocity,
                 shape,
-                mass,
-                vertex_resolution,
-                vertices,
+                density,
             } => ParsedColliderBody::RigidBody(ParsedRigidBody {
                 shape,
                 rotation: rotation.into(),
                 scale,
                 angular_velocity,
-                mass,
-                vertex_resolution,
-                vertices,
+                density,
             }),
         }
     }
@@ -115,9 +108,7 @@ pub struct ParsedRigidBody {
     pub rotation: Quat,
     pub scale: Vec3,
     pub angular_velocity: Vec3,
-    pub mass: f32,
-    pub vertex_resolution: UVec3,
-    pub vertices: Vec<Vec3>,
+    pub density: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -138,5 +129,39 @@ impl Default for ParsedMaterial {
         Self {
             restitution: DefaultOptions::material_restitution(),
         }
+    }
+}
+
+impl ParsedShape {
+    /// Returns `(unscaled, scaled)`
+    pub fn to_scaled_shape(&self, scale: Vec3, n_subdivisions: u32) -> (SharedShape, SharedShape) {
+        let unscaled = match self {
+            ParsedShape::Cuboid => SharedShape::cuboid(0.5, 0.5, 0.5),
+        };
+
+        let scale = parry3d::math::Vector::<f32>::new(scale.x, scale.y, scale.z).abs();
+        let scaled = match unscaled.as_typed_shape() {
+            TypedShape::Ball(_) => todo!(),
+            TypedShape::Cuboid(s) => SharedShape::new(s.scaled(&scale)),
+            TypedShape::Capsule(_) => todo!(),
+            TypedShape::Segment(_) => todo!(),
+            TypedShape::Triangle(_) => todo!(),
+            TypedShape::TriMesh(_) => todo!(),
+            TypedShape::Polyline(_) => todo!(),
+            TypedShape::HalfSpace(_) => todo!(),
+            TypedShape::HeightField(_) => todo!(),
+            TypedShape::Compound(_) => todo!(),
+            TypedShape::ConvexPolyhedron(_) => todo!(),
+            TypedShape::Cylinder(_) => todo!(),
+            TypedShape::Cone(_) => todo!(),
+            TypedShape::RoundCuboid(_) => todo!(),
+            TypedShape::RoundTriangle(_) => todo!(),
+            TypedShape::RoundCylinder(_) => todo!(),
+            TypedShape::RoundCone(_) => todo!(),
+            TypedShape::RoundConvexPolyhedron(_) => todo!(),
+            TypedShape::Custom(_) => todo!(),
+        };
+
+        (unscaled, scaled)
     }
 }

@@ -1,7 +1,7 @@
 use glam::{Mat3, Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collider::{Collider, ColliderBody, ColliderId}, constraint::{collision::{ParticleCollisionConstraint, RigidBodyCollisionConstraint}, restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, Constraint, VelocityConstraint}, contact::{ParticleContact, RigidBodyContact}, math::skew_symmetric_mat3};
+use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{ParticleCollisionConstraint, RigidBodyCollisionConstraint}, restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, Constraint, VelocityConstraint}, math::skew_symmetric_mat3};
 
 pub struct World {
     pub steps: u32,
@@ -22,8 +22,7 @@ impl World {
     pub fn initialize(&mut self) {
         for collider in self.colliders.iter_mut() {
             if let ColliderBody::Rigid(rb) = &mut collider.body {
-                rb.compute_vertices();
-                rb.compute_inertia_tensor();
+                rb.compute_mass_properties();
             }
         }
     }
@@ -146,8 +145,8 @@ impl World {
 
                 if let ColliderBody::Rigid(rb) = &mut body.body {
                     let inverse_inertia = if body.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
-                    rb.rotation = rb.rotation +
-                        Quat::from_vec4(0.5 * (inverse_inertia * anchor.cross(p)).extend(0.0)) * rb.rotation;
+                    rb.rotation = Quat::normalize(rb.rotation +
+                        Quat::from_vec4(0.5 * (inverse_inertia * anchor.cross(p)).extend(0.0)) * rb.rotation);
                 }
             }
         }
@@ -183,88 +182,132 @@ impl World {
                 let id_a = ColliderId::new(i);
                 let id_b = ColliderId::new(j);
 
-                let a = unsafe { self.colliders.get_unchecked(i) };
-                let b = unsafe { self.colliders.get_unchecked(j) };
+                let a = unsafe { &*(self.colliders.get_unchecked(i) as *const Collider) };
+                let b = unsafe { &*(self.colliders.get_unchecked(j) as *const Collider) };
 
                 match (&a.body, &b.body) {
                     (ColliderBody::Particle(_), ColliderBody::Particle(_)) => (),
-                    (ColliderBody::Particle(_), ColliderBody::Rigid(_)) => {
-                        let Some(contact) = ParticleContact::new(a, b) else {
+                    (ColliderBody::Particle(_), ColliderBody::Rigid(rb)) => {
+                        if self.add_particle_rb_collision(a, b, rb, id_a, id_b).is_none() {
                             continue;
                         };
-
-                        let collision = ParticleCollisionConstraint {
-                            particle: id_a,
-                            rb: id_b,
-                            contact: contact.clone(),
-                            compliance: 0.0,
-                        };
-
-                        let restitution = ParticleRestitutionConstraint {
-                            particle: id_a,
-                            rb: id_b,
-                            contact,
-                            coefficient: *a.material.restitution.combine(b.material.restitution),
-                        };
-
-                        self.collision_constraints.push(Box::new(collision));
-                        self.velocity_collision_constraints.push(Box::new(restitution));
                     },
-                    (ColliderBody::Rigid(_), ColliderBody::Particle(_)) => {
-                        let Some(contact) = ParticleContact::new(b, a) else {
+                    (ColliderBody::Rigid(rb), ColliderBody::Particle(_)) => {
+                        if self.add_particle_rb_collision(b, a, rb, id_b, id_a).is_none() {
                             continue;
                         };
-
-                        let collision = ParticleCollisionConstraint {
-                            particle: id_b,
-                            rb: id_a,
-                            contact: contact.clone(),
-                            compliance: 0.0,
-                        };
-
-                        let restitution = ParticleRestitutionConstraint {
-                            particle: id_b,
-                            rb: id_a,
-                            contact,
-                            coefficient: *a.material.restitution.combine(b.material.restitution),
-                        };
-
-                        self.collision_constraints.push(Box::new(collision));
-                        self.velocity_collision_constraints.push(Box::new(restitution));
                     },
-                    (ColliderBody::Rigid(_), ColliderBody::Rigid(_)) => {
-                        let Some(rb_contact) = RigidBodyContact::new(a, b, id_a, id_b) else {
+                    (ColliderBody::Rigid(a_body), ColliderBody::Rigid(b_body)) => {
+                        if self.add_rb_collision(a, b, a_body, b_body, id_a, id_b).is_none() {
                             continue;
                         };
-
-                        for (id, contact) in rb_contact.contacts {
-                            let (a_id, b_id) = if id == id_a {
-                                (id_a, id_b)
-                            } else {
-                                (id_b, id_a)
-                            };
-
-                            let collision = RigidBodyCollisionConstraint {
-                                a: a_id,
-                                b: b_id,
-                                contact: contact.clone(),
-                                compliance: 0.0,
-                            };
-
-                            let restitution = RigidBodyRestitutionConstraint {
-                                a: a_id,
-                                b: b_id,
-                                contact,
-                                coefficient: *a.material.restitution.combine(b.material.restitution),
-                            };
-
-                            self.collision_constraints.push(Box::new(collision));
-                            self.velocity_collision_constraints.push(Box::new(restitution));
-                        }
                     },
                 }
             }
         }
+    }
+
+    fn add_particle_rb_collision(
+        &mut self,
+        particle: &Collider,
+        rb: &Collider,
+        rb_body: &RigidBody,
+        particle_id: ColliderId,
+        rb_id: ColliderId,
+    ) -> Option<()> {
+        let contact = contact_query::contact_point(
+            rb_body,
+            rb.position,
+            rb_body.rotation,
+            particle.position,
+        )?;
+
+        let collision = ParticleCollisionConstraint::new(
+            particle_id,
+            rb_id,
+            rb,
+            &contact,
+        );
+
+        let restitution = ParticleRestitutionConstraint::new(
+            particle_id,
+            rb_id,
+            rb,
+            &contact,
+            *rb.material.restitution.combine(particle.material.restitution),
+        );
+
+        self.collision_constraints.push(Box::new(collision));
+        self.velocity_collision_constraints.push(Box::new(restitution));
+
+        Some(())
+    }
+
+    fn add_rb_collision(
+        &mut self,
+        a: &Collider,
+        b: &Collider,
+        a_body: &RigidBody,
+        b_body: &RigidBody,
+        a_id: ColliderId,
+        b_id: ColliderId,
+    ) -> Option<()> {
+        let effective_speculative_margin = {
+            // TODO: make this a configurable part of the body
+            let margin1 = 0.0;
+            let margin2 = 0.0;
+            
+            let inv_dt = self.dt.recip();
+
+            // TODO: clamp linear velocities to the maximum speculative margins.
+            self.dt * (a.velocity - b.velocity).length()
+        };
+
+        // TODO: make this configurable
+        let contact_tolerance = 0.01;
+        let collision_margin_sum = 0.0;
+
+        let max_contact_dist = effective_speculative_margin.max(contact_tolerance) + collision_margin_sum;
+
+        let manifolds = contact_query::contact_manifolds(
+            a_body,
+            a.position,
+            a_body.rotation,
+            b_body,
+            b.position,
+            b_body.rotation,
+            0.0,
+        );
+
+        if manifolds.is_empty() {
+            return None;
+        }
+
+        for manifold in manifolds.iter() {
+            for contact in manifold.contacts.iter() {
+                let collision = RigidBodyCollisionConstraint::new(
+                    a_id,
+                    b_id,
+                    a_body,
+                    b_body,
+                    contact,
+                );
+
+                let restitution = RigidBodyRestitutionConstraint::new(
+                    a_id,
+                    b_id,
+                    a_body,
+                    b_body,
+                    contact,
+                    *a.material.restitution.combine(b.material.restitution),
+                );
+
+                self.collision_constraints.push(Box::new(collision));
+                self.velocity_collision_constraints.push(Box::new(restitution));
+            }
+        }
+
+        Some(())
     }
 
     pub fn state(&self) -> WriteWorldState {

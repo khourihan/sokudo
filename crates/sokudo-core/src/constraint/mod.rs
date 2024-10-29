@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::collider::{Collider, ColliderId};
+use crate::collisions::collider::{Collider, ColliderId};
 
 pub mod collision;
 pub mod restitution;

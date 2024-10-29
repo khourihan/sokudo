@@ -16,6 +16,7 @@ sokudo-io = { path = "crates/sokudo-io" }
 sokudo-playback = { path = "crates/sokudo-playback" }
 
 glam = { version = "0.29.0", features = [ "serde" ] }
+parry3d = "0.17.1"
 serde = { version = "1.0.210", features = [ "derive" ] }
 thiserror = "1.0.64"
 

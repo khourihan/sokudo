@@ -1,23 +1,24 @@
-use glam::{Mat3, Quat, UVec3, Vec3};
+use glam::{Mat3, Quat, Vec3};
+use parry3d::shape::SharedShape;
 use sokudo_io::read::collider::ParsedRigidBody;
-
-use crate::shape::{AbstractShape, Shape};
 
 #[derive(Debug)]
 pub struct RigidBody {
-    /// The shape of this rigid body.
-    pub shape: Shape,
+    /// The raw unscaled shape of this rigid body.
+    pub shape: SharedShape,
+    /// The scaled version of the shape of this rigid body.
+    pub scaled_shape: SharedShape,
     /// The scale of the rigid body, in all three dimensions.
     pub scale: Vec3,
+
     /// The inverse mass of this rigid body.
     pub inverse_mass: f32,
-    /// The resolution of the vertices, in all three dimensions.
-    pub vertex_resolution: UVec3,
-    /// The precomputed vertices to test for intersections on this rigid body.
-    pub vertices: Vec<Vec3>,
-
     /// The inverse of the inertia tensor of this rigid body, in local coordinates.
     pub inertia_tensor: InertiaTensor, 
+    /// The center of mass of this rigid body, in local coordinates.
+    pub center_of_mass: Vec3,
+    /// The uniform density of this rigid body.
+    pub density: f32,
 
     pub rotation: Quat,
     pub previous_rotation: Quat,
@@ -26,14 +27,12 @@ pub struct RigidBody {
 }
 
 impl RigidBody {
-    pub fn compute_vertices(&mut self) {
-        if self.vertices.is_empty() {
-            self.vertices = self.shape.vertices(self.vertex_resolution);
-        }
-    }
+    pub fn compute_mass_properties(&mut self) {
+        let props = self.scaled_shape.mass_properties(self.density);
 
-    pub fn compute_inertia_tensor(&mut self) {
-        self.inertia_tensor = InertiaTensor::new(self.shape.moments(self.scale));
+        self.inverse_mass = props.inv_mass;
+        self.inertia_tensor = props.reconstruct_inverse_inertia_matrix().into();
+        self.center_of_mass = Vec3::new(props.local_com.x, props.local_com.y, props.local_com.z);
     }
 
     // TODO: Maybe store global inverse inertia tensor as well + update per frame?
@@ -52,22 +51,22 @@ impl RigidBody {
 
 impl From<ParsedRigidBody> for RigidBody {
     fn from(value: ParsedRigidBody) -> Self {
-        RigidBody {
-            shape: value.shape.into(),
-            inverse_mass: 1.0 / value.mass,
-            vertex_resolution: if value.vertex_resolution == UVec3::ZERO {
-                UVec3::ONE
-            } else {
-                value.vertex_resolution
-            },
-            vertices: value.vertices,
+        let (unscaled, scaled) = value.shape.to_scaled_shape(value.scale, 0);
 
-            inertia_tensor: InertiaTensor::INFINITY,
+        RigidBody {
+            shape: unscaled,
+            scaled_shape: scaled,
+            scale: value.scale,
+
+            inverse_mass: 0.0,
+            inertia_tensor: InertiaTensor::default(),
+            center_of_mass: Vec3::ZERO,
+            density: value.density,
+
+            rotation: value.rotation,
             previous_rotation: value.rotation,
             angular_velocity: value.angular_velocity,
             previous_angular_velocity: value.angular_velocity,
-            rotation: value.rotation,
-            scale: value.scale,
         }
     }
 }
@@ -146,5 +145,15 @@ impl InertiaTensor {
     #[inline]
     pub fn is_nan(&self) -> bool {
         self.inverse.is_nan()
+    }
+}
+
+impl From<parry3d::na::Matrix3<f32>> for InertiaTensor {
+    fn from(value: parry3d::na::Matrix3<f32>) -> Self {
+        Self::from_inverse_tensor(Mat3::from_cols(
+            Vec3::new(value[(0, 0)], value[(0, 1)], value[(0, 2)]),
+            Vec3::new(value[(1, 0)], value[(1, 1)], value[(1, 2)]),
+            Vec3::new(value[(2, 0)], value[(2, 1)], value[(2, 2)]),
+        ))
     }
 }
