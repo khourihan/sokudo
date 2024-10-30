@@ -36,6 +36,7 @@ impl RigidBody {
     }
 
     // TODO: Maybe store global inverse inertia tensor as well + update per frame?
+    #[inline]
     pub fn global_inverse_inertia(&self) -> Mat3 {
         self.inertia_tensor.rotate(self.rotation).inverse()
     }
@@ -43,6 +44,7 @@ impl RigidBody {
     /// Compute the generalized inverse mass of this rigid body at point `r` when applying
     /// positional correction along the vector `n`, where `r` is relative to the body's center of
     /// mass in global coordinates.
+    #[inline]
     pub fn positional_inverse_mass(&self, r: Vec3, n: Vec3) -> f32 {
         let r_cross_n = r.cross(n);
         self.inverse_mass + r_cross_n.dot(self.global_inverse_inertia() * r_cross_n)
@@ -149,6 +151,7 @@ impl InertiaTensor {
 }
 
 impl From<parry3d::na::Matrix3<f32>> for InertiaTensor {
+    #[inline]
     fn from(value: parry3d::na::Matrix3<f32>) -> Self {
         Self::from_inverse_tensor(Mat3::from_cols(
             Vec3::new(value[(0, 0)], value[(0, 1)], value[(0, 2)]),

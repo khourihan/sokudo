@@ -1,8 +1,6 @@
 use glam::Vec3;
 
-use crate::collisions::{collider::{Collider, ColliderBody, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody};
-
-use super::VelocityConstraint;
+use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody}, constraint::VelocityConstraint};
 
 pub struct ParticleRestitutionConstraint {
     pub particle: ColliderId,

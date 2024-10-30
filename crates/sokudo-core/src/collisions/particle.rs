@@ -7,6 +7,7 @@ pub struct Particle {
 }
 
 impl Particle {
+    #[inline]
     pub fn inverse_mass(&self) -> f32 {
         self.inverse_mass
     }

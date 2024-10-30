@@ -29,6 +29,7 @@ pub struct Collider {
 pub struct ColliderId(pub u32);
 
 impl ColliderId {
+    #[inline]
     pub fn new(i: usize) -> ColliderId {
         ColliderId(i as u32)
     }
@@ -127,6 +128,7 @@ impl From<&Collider> for WriteCollider {
 }
 
 impl std::hash::Hash for Collider {
+    #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u32(self.id);
     }

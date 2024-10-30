@@ -1,7 +1,7 @@
 use glam::{Mat3, Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{ParticleCollisionConstraint, RigidBodyCollisionConstraint}, restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, Constraint, VelocityConstraint}, math::skew_symmetric_mat3};
+use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, ParticleCollisionConstraint, RigidBodyCollisionConstraint}, Constraint, VelocityConstraint}, math::skew_symmetric_mat3};
 
 pub struct World {
     pub steps: u32,
@@ -32,21 +32,35 @@ impl World {
 
         // TODO: Collect collision pairs
 
-        // Integrate
+        self.integrate_velocities();
+        // TODO: Warm start
+        self.integrate_positions();
+        // TODO: Relax
+
+        // TODO: Narrow phase
+
+        self.create_collisions();
+        self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
+        self.solve_constraints();
+
+        self.update_velocities();
+
+        self.solve_velocities();
+    }
+
+    fn integrate_velocities(&mut self) {
         for collider in self.colliders.iter_mut().filter(|c| !c.locked) {
             let inv_mass = collider.body.inverse_mass();
             let gravity = self.gravity / inv_mass;
             let external_forces = gravity;
 
-            collider.previous_position = collider.position;
-            collider.velocity += self.dt * external_forces * inv_mass;
-            collider.position += self.dt * collider.velocity;
             collider.previous_velocity = collider.velocity;
+            collider.velocity += self.dt * external_forces * inv_mass;
 
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 let external_torque = Vec3::ZERO;
 
-                rb.previous_rotation = rb.rotation;
+                rb.previous_angular_velocity = rb.angular_velocity;
 
                 let effective_angular_inertia = rb.global_inverse_inertia();
                 let mut delta_ang_vel = self.dt * if effective_angular_inertia.is_finite() {
@@ -75,32 +89,22 @@ impl World {
                 };
 
                 rb.angular_velocity += delta_ang_vel;
+            }
+        }
+    }
+
+    fn integrate_positions(&mut self) {
+        for collider in self.colliders.iter_mut().filter(|c| !c.locked) {
+            collider.previous_position = collider.position;
+            collider.position += self.dt * collider.velocity;
+
+            if let ColliderBody::Rigid(rb) = &mut collider.body {
+                rb.previous_rotation = rb.rotation;
 
                 let delta_rot = Quat::from_scaled_axis(self.dt * rb.angular_velocity);
                 rb.rotation = (delta_rot * rb.rotation).normalize();
-
-                rb.previous_angular_velocity = rb.angular_velocity;
             }
         }
-
-        // TODO: Narrow phase
-
-        self.create_collisions();
-        self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
-        self.solve_constraints();
-
-        // Update velocities
-        for collider in self.colliders.iter_mut() {
-            collider.velocity = (collider.position - collider.previous_position) / self.dt;
-
-            if let ColliderBody::Rigid(rb) = &mut collider.body {
-                let delta_rot = rb.rotation * rb.previous_rotation.inverse();
-                rb.angular_velocity = 2.0 * delta_rot.xyz() / self.dt;
-                rb.angular_velocity = if delta_rot.w >= 0.0 { rb.angular_velocity } else { -rb.angular_velocity };
-            }
-        }
-
-        self.solve_velocities();
     }
 
     fn solve_constraints(&mut self) {
@@ -154,6 +158,18 @@ impl World {
         for collider in self.colliders.iter_mut() {
             collider.position += collider.delta_position;
             collider.delta_position = Vec3::ZERO;
+        }
+    }
+
+    fn update_velocities(&mut self) {
+        for collider in self.colliders.iter_mut() {
+            collider.velocity = (collider.position - collider.previous_position) / self.dt;
+
+            if let ColliderBody::Rigid(rb) = &mut collider.body {
+                let delta_rot = rb.rotation * rb.previous_rotation.inverse();
+                rb.angular_velocity = 2.0 * delta_rot.xyz() / self.dt;
+                rb.angular_velocity = if delta_rot.w >= 0.0 { rb.angular_velocity } else { -rb.angular_velocity };
+            }
         }
     }
     

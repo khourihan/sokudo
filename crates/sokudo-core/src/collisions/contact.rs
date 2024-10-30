@@ -81,51 +81,61 @@ impl PackedFeatureId {
     const HEADER_EDGE: u32 = 0b10 << 30;
     const HEADER_FACE: u32 = 0b11 << 30;
 
+    #[inline]
     pub fn vertex(code: u32) -> Self {
         assert_eq!(code & Self::HEADER_MASK, 0);
         Self(Self::HEADER_VERTEX | code)
     }
 
+    #[inline]
     pub fn edge(code: u32) -> Self {
         assert_eq!(code & Self::HEADER_MASK, 0);
         Self(Self::HEADER_EDGE | code)
     }
 
+    #[inline]
     pub fn face(code: u32) -> Self {
         assert_eq!(code & Self::HEADER_MASK, 0);
         Self(Self::HEADER_FACE | code)
     }
 
+    #[inline]
     pub fn is_face(self) -> bool {
         self.0 & Self::HEADER_MASK == Self::HEADER_FACE
     }
 
+    #[inline]
     pub fn is_vertex(self) -> bool {
         self.0 & Self::HEADER_MASK == Self::HEADER_VERTEX
     }
 
+    #[inline]
     pub fn is_edge(self) -> bool {
         self.0 & Self::HEADER_MASK == Self::HEADER_EDGE
     }
 
+    #[inline]
     pub fn is_unknown(self) -> bool {
         self == Self::UNKNOWN
     }
 }
 
 impl From<u32> for PackedFeatureId {
+    #[inline]
     fn from(code: u32) -> Self {
         Self(code)
     }
 }
 
 impl From<parry3d::shape::PackedFeatureId> for PackedFeatureId {
+    #[inline]
     fn from(value: parry3d::shape::PackedFeatureId) -> Self {
         Self(value.0)
     }
 }
 
 impl From<parry3d::shape::FeatureId> for PackedFeatureId {
+    #[inline]
     fn from(value: parry3d::shape::FeatureId) -> Self {
         Self(parry3d::shape::PackedFeatureId::from(value).0)
     }

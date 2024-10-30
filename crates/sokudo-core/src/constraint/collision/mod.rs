@@ -4,6 +4,8 @@ use crate::collisions::{collider::{Collider, ColliderBody, ColliderId}, contact:
 
 use super::Constraint;
 
+pub mod restitution;
+
 pub struct ParticleCollisionConstraint {
     pub particle: ColliderId,
     pub rb: ColliderId,

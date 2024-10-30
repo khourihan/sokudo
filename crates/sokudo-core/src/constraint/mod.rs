@@ -3,7 +3,6 @@ use glam::Vec3;
 use crate::collisions::collider::{Collider, ColliderId};
 
 pub mod collision;
-pub mod restitution;
 
 pub trait Constraint {
     /// The participating bodies of this constraint.

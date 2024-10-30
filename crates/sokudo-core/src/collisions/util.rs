@@ -8,6 +8,7 @@ macro_rules! impl_from_na {
     ($($ty:ty: $na:ty),* $(,)* |$v:ident| => $f:block) => {
         $(
             impl FromNaType<$na> for $ty {
+                #[inline]
                 fn from_na($v: $na) -> Self $f
             }
         )*
