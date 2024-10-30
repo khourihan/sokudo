@@ -23,6 +23,9 @@ pub struct Collider {
     pub previous_position: Vec3,
     pub velocity: Vec3,
     pub previous_velocity: Vec3,
+
+    /// Damping on the collider's linear velocity.
+    pub linear_damping: f32,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -89,6 +92,8 @@ impl From<ParsedCollider> for Collider {
             previous_position: value.position,
             velocity: value.velocity,
             previous_velocity: value.velocity,
+
+            linear_damping: value.linear_damping,
         }
     }
 }

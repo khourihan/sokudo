@@ -16,6 +16,8 @@ pub struct ParsedCollider {
     
     pub position: Vec3,
     pub velocity: Vec3,
+
+    pub linear_damping: f32,
 }
 
 #[derive(Debug)]
@@ -39,6 +41,9 @@ pub(crate) enum RawCollider {
         material: ParsedMaterial,
         #[serde(default = "DefaultOptions::mass")]
         mass: f32,
+
+        #[serde(default)]
+        damping: f32,
     },
     RigidBody {
         #[serde(default)]
@@ -61,6 +66,9 @@ pub(crate) enum RawCollider {
         shape: ParsedShape,
         #[serde(default = "DefaultOptions::scale")]
         scale: Vec3,
+
+        #[serde(default)]
+        damping: ParsedRigidBodyDamping,
     },
 }
 
@@ -72,6 +80,7 @@ impl From<RawCollider> for ParsedColliderBody {
                 position: _,
                 velocity: _,
                 material: _,
+                damping: _,
                 mass,
             } => ParsedColliderBody::Particle(ParsedParticle {
                 mass,
@@ -86,13 +95,30 @@ impl From<RawCollider> for ParsedColliderBody {
                 angular_velocity,
                 shape,
                 density,
+                damping,
             } => ParsedColliderBody::RigidBody(ParsedRigidBody {
                 shape,
                 rotation: rotation.into(),
                 scale,
                 angular_velocity,
                 density,
+                angular_damping: damping.angular,
             }),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename = "Material")]
+pub struct ParsedMaterial {
+    #[serde(default = "DefaultOptions::material_restitution")]
+    pub restitution: f32,
+}
+
+impl Default for ParsedMaterial {
+    fn default() -> Self {
+        Self {
+            restitution: DefaultOptions::material_restitution(),
         }
     }
 }
@@ -109,6 +135,7 @@ pub struct ParsedRigidBody {
     pub scale: Vec3,
     pub angular_velocity: Vec3,
     pub density: f32,
+    pub angular_damping: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -117,19 +144,13 @@ pub enum ParsedShape {
     Cuboid,
 }
 
-#[derive(Deserialize, Debug, Clone, Copy)]
-#[serde(rename = "Material")]
-pub struct ParsedMaterial {
-    #[serde(default = "DefaultOptions::material_restitution")]
-    pub restitution: f32,
-}
-
-impl Default for ParsedMaterial {
-    fn default() -> Self {
-        Self {
-            restitution: DefaultOptions::material_restitution(),
-        }
-    }
+#[derive(Deserialize, Debug, Clone, Copy, Default)]
+#[serde(rename = "Damping")]
+pub struct ParsedRigidBodyDamping {
+    #[serde(default)]
+    pub linear: f32,
+    #[serde(default)]
+    pub angular: f32,
 }
 
 impl ParsedShape {

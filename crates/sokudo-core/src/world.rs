@@ -54,13 +54,15 @@ impl World {
             let gravity = self.gravity / inv_mass;
             let external_forces = gravity;
 
-            collider.previous_velocity = collider.velocity;
+            if collider.linear_damping != 0.0 {
+                collider.velocity *= 1.0 / (1.0 + self.dt * collider.linear_damping);
+            }
+
             collider.velocity += self.dt * external_forces * inv_mass;
+            collider.previous_velocity = collider.velocity;
 
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 let external_torque = Vec3::ZERO;
-
-                rb.previous_angular_velocity = rb.angular_velocity;
 
                 let effective_angular_inertia = rb.global_inverse_inertia();
                 let mut delta_ang_vel = self.dt * if effective_angular_inertia.is_finite() {
@@ -88,7 +90,12 @@ impl World {
                     rb.rotation * delta_ang_vel
                 };
 
+                if rb.angular_damping != 0.0 {
+                    rb.angular_velocity *= 1.0 / (1.0 + self.dt * rb.angular_damping);
+                }
+
                 rb.angular_velocity += delta_ang_vel;
+                rb.previous_angular_velocity = rb.angular_velocity;
             }
         }
     }

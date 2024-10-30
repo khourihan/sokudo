@@ -76,6 +76,10 @@ impl From<RawWorld> for ParsedWorld {
                         RawCollider::Particle { material, .. } => material,
                         RawCollider::RigidBody { material, .. } => material,
                     },
+                    linear_damping: match collider {
+                        RawCollider::Particle { damping, .. } => damping,
+                        RawCollider::RigidBody { damping, .. } => damping.linear,
+                    },
                     body: ParsedColliderBody::from(collider),
                 }
             }).collect(),

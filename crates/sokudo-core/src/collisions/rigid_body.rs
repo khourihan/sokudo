@@ -24,6 +24,9 @@ pub struct RigidBody {
     pub previous_rotation: Quat,
     pub angular_velocity: Vec3,
     pub previous_angular_velocity: Vec3,
+
+    /// Damping on the rigid body's angular velocity.
+    pub angular_damping: f32,
 }
 
 impl RigidBody {
@@ -69,6 +72,8 @@ impl From<ParsedRigidBody> for RigidBody {
             previous_rotation: value.rotation,
             angular_velocity: value.angular_velocity,
             previous_angular_velocity: value.angular_velocity,
+
+            angular_damping: value.angular_damping,
         }
     }
 }
