@@ -3,6 +3,7 @@ use glam::Vec3;
 use crate::collisions::collider::{Collider, ColliderId};
 
 pub mod collision;
+pub mod distance;
 
 pub trait Constraint {
     /// The participating bodies of this constraint.
@@ -25,7 +26,7 @@ pub trait Constraint {
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32>;
 
     /// The anchors where positional impulses should be applied.
-    fn anchors(&self) -> Vec<Vec3>;
+    fn anchors(&self, bodies: &[&Collider]) -> Vec<Vec3>;
 
     /// The inverse stiffness of this constraint.
     fn compliance(&self) -> f32;

@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::collisions::{collider::{Collider, ColliderBody, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody};
+use crate::collisions::{collider::{Collider, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody};
 
 use super::Constraint;
 
@@ -52,21 +52,13 @@ impl Constraint for ParticleCollisionConstraint {
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32> {
         let [particle, rb] = *bodies else { return vec![] };
 
-        let ColliderBody::Particle(ref particle_body) = particle.body else {
-            return vec![];
-        };
-
-        let ColliderBody::Rigid(ref rb_body) = rb.body else {
-            return vec![];
-        };
-
-        let w1 = if particle.locked { 0.0 } else { particle_body.inverse_mass() };
-        let w2 = if rb.locked { 0.0 } else { rb_body.positional_inverse_mass(self.rb_anchor, self.normal) };
+        let w1 = if particle.locked { 0.0 } else { particle.body.positional_inverse_mass(Vec3::ZERO, self.normal) };
+        let w2 = if rb.locked { 0.0 } else { rb.body.positional_inverse_mass(self.rb_anchor, self.normal) };
 
         vec![w1, w2]
     }
 
-    fn anchors(&self) -> Vec<Vec3> {
+    fn anchors(&self, _bodies: &[&Collider]) -> Vec<Vec3> {
         vec![Vec3::ZERO, self.rb_anchor]
     }
 
@@ -133,23 +125,14 @@ impl Constraint for RigidBodyCollisionConstraint {
     fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32> {
         let [rb1, rb2] = *bodies else { return vec![] };
 
-        let ColliderBody::Rigid(ref rb1_body) = rb1.body else {
-            return vec![];
-        };
-
-        let ColliderBody::Rigid(ref rb2_body) = rb2.body else {
-            return vec![];
-        };
-
-
-        let w1 = if rb1.locked { 0.0 } else { rb1_body.positional_inverse_mass(self.anchor1, self.normal) };
-        let w2 = if rb2.locked { 0.0 } else { rb2_body.positional_inverse_mass(self.anchor2, self.normal) };
+        let w1 = if rb1.locked { 0.0 } else { rb1.body.positional_inverse_mass(self.anchor1, self.normal) };
+        let w2 = if rb2.locked { 0.0 } else { rb2.body.positional_inverse_mass(self.anchor2, self.normal) };
 
         vec![w1, w2]
     }
 
     #[inline]
-    fn anchors(&self) -> Vec<Vec3> {
+    fn anchors(&self, _bodies: &[&Collider]) -> Vec<Vec3> {
         vec![self.anchor1, self.anchor2]
     }
 

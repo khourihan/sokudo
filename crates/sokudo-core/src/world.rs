@@ -140,7 +140,7 @@ impl World {
 
             *lagrange += delta_lagrange;
 
-            let anchors = constraint.anchors();
+            let anchors = constraint.anchors(&bodies);
 
             let bodies = unsafe {
                 constraint.bodies().into_iter()
@@ -276,12 +276,6 @@ impl World {
         b_id: ColliderId,
     ) -> Option<()> {
         let effective_speculative_margin = {
-            // TODO: make this a configurable part of the body
-            let margin1 = 0.0;
-            let margin2 = 0.0;
-            
-            let inv_dt = self.dt.recip();
-
             // TODO: clamp linear velocities to the maximum speculative margins.
             self.dt * (a.velocity - b.velocity).length()
         };
@@ -299,7 +293,7 @@ impl World {
             b_body,
             b.position,
             b_body.rotation,
-            0.0,
+            max_contact_dist,
         );
 
         if manifolds.is_empty() {

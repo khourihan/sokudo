@@ -67,6 +67,27 @@ impl ColliderBody {
             ColliderBody::Rigid(rb) => rb.inverse_mass,
         }
     }
+
+    /// Computes the point relative to the body's center of mass in global space given a point
+    /// relative to its center of mass in local space.
+    #[inline]
+    pub fn global_arm(&self, anchor: Vec3) -> Vec3 {
+        match self {
+            ColliderBody::Particle(_) => anchor,
+            ColliderBody::Rigid(rb) => rb.rotation * anchor,
+        }
+    }
+
+    /// Compute the generalized inverse mass of this rigid body at point `r` when applying
+    /// positional correction along the vector `n`, where `r` is relative to the body's center of
+    /// mass in global coordinates.
+    #[inline]
+    pub fn positional_inverse_mass(&self, r: Vec3, n: Vec3) -> f32 {
+        match self {
+            ColliderBody::Particle(particle) => particle.inverse_mass,
+            ColliderBody::Rigid(rb) => rb.positional_inverse_mass(r, n),
+        }
+    }
 }
 
 impl From<ParsedCollider> for Collider {
