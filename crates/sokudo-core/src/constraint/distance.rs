@@ -22,49 +22,49 @@ pub struct DistanceConstraint {
     pub compliance: f32,
 }
 
-impl Constraint for DistanceConstraint {
+impl Constraint<2> for DistanceConstraint {
     #[inline]
-    fn bodies(&self) -> Vec<ColliderId> {
-        vec![self.a, self.b]
+    fn bodies(&self) -> [ColliderId; 2] {
+        [self.a, self.b]
     }
 
     // TODO: pass anchors in here
-    fn c(&self, bodies: &[&Collider]) -> f32 {
+    fn c(&self, bodies: [&Collider; 2]) -> f32 {
         let [r1, r2] = self.anchors(bodies)[0..2] else { return 0.0 };
 
         (r1 - r2).length() - self.l
     }
 
     // TODO: pass anchors in here
-    fn c_gradients(&self, bodies: &[&Collider]) -> Vec<Vec3> {
-        let [r1, r2] = self.anchors(bodies)[0..2] else { return vec![] };
+    fn c_gradients(&self, bodies: [&Collider; 2]) -> [Vec3; 2] {
+        let [r1, r2] = self.anchors(bodies);
 
         let n = (r1 - r2).normalize();
 
-        vec![n, -n]
+        [n, -n]
     }
 
     // TODO: pass anchors in here
-    fn inverse_masses(&self, bodies: &[&Collider]) -> Vec<f32> {
-        let [a, b] = *bodies else { return vec![] };
-        let [r1, r2] = self.anchors(bodies)[0..2] else { return vec![] };
+    fn inverse_masses(&self, bodies: [&Collider; 2]) -> [f32; 2] {
+        let [a, b] = bodies;
+        let [r1, r2] = self.anchors(bodies);
 
         let n = (r1 - r2).normalize();
 
         let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(r1, n) };
         let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(r2, n) };
 
-        vec![w1, w2]
+        [w1, w2]
     }
 
     #[inline]
-    fn anchors(&self, bodies: &[&Collider]) -> Vec<Vec3> {
-        let [a, b] = *bodies else { return vec![] };
+    fn anchors(&self, bodies: [&Collider; 2]) -> [Vec3; 2] {
+        let [a, b] = bodies;
 
         let r1 = a.body.global_arm(self.anchor1);
         let r2 = b.body.global_arm(self.anchor2);
 
-        vec![r1, r2]
+        [r1, r2]
     }
 
     #[inline]

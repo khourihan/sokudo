@@ -9,10 +9,10 @@ pub struct World {
     pub gravity: Vec3,
     pub colliders: Vec<Collider>,
 
-    pub constraints: Vec<Box<dyn Constraint>>,
-    pub collision_constraints: Vec<Box<dyn Constraint>>,
-    pub velocity_constraints: Vec<Box<dyn VelocityConstraint>>,
-    pub velocity_collision_constraints: Vec<Box<dyn VelocityConstraint>>,
+    pub constraints: Vec<Box<dyn Constraint<2>>>,
+    pub collision_constraints: Vec<Box<dyn Constraint<2>>>,
+    pub velocity_constraints: Vec<Box<dyn VelocityConstraint<2>>>,
+    pub velocity_collision_constraints: Vec<Box<dyn VelocityConstraint<2>>>,
     pub lagrange: Vec<f32>,
 
     pub inspector: InspectElements,
@@ -116,15 +116,16 @@ impl World {
 
     fn solve_constraints(&mut self) {
         for (constraint, lagrange) in self.constraints.iter().chain(self.collision_constraints.iter()).zip(self.lagrange.iter_mut()) {
-            let bodies: Vec<_> = unsafe {
+            let Ok(bodies) = (unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| self.colliders.get_unchecked(id.0 as usize))
-                    .collect()
-            };
+                    .collect::<Vec<_>>()
+                    .try_into()
+            }) else { continue };
 
-            let c = constraint.c(&bodies);
-            let gradients = constraint.c_gradients(&bodies);
-            let inverse_masses = constraint.inverse_masses(&bodies);
+            let c = constraint.c(bodies);
+            let gradients = constraint.c_gradients(bodies);
+            let inverse_masses = constraint.inverse_masses(bodies);
 
             let w_sum = inverse_masses
                 .iter()
@@ -140,15 +141,17 @@ impl World {
 
             *lagrange += delta_lagrange;
 
-            let anchors = constraint.anchors(&bodies);
+            let anchors = constraint.anchors(bodies);
 
-            let bodies = unsafe {
+            let Ok(bodies): Result<[_; 2], _> = (unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
                     .zip(gradients.into_iter())
                     .zip(inverse_masses.into_iter())
                     .zip(anchors.into_iter())
-            };
+                    .collect::<Vec<_>>()
+                    .try_into()
+            }) else { continue };
 
             for (((body, gradient), inv_mass), anchor) in bodies {
                 let p = delta_lagrange * gradient;
@@ -182,13 +185,14 @@ impl World {
     
     fn solve_velocities(&mut self) {
         for constraint in self.velocity_constraints.iter().chain(self.velocity_collision_constraints.iter()) {
-            let bodies: Vec<_> = unsafe {
+            let Ok(bodies) = (unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
-                    .collect()
-            };
+                    .collect::<Vec<_>>()
+                    .try_into()
+            }) else { continue };
 
-            constraint.solve(bodies.into_iter());
+            constraint.solve(bodies);
         }
     }
 

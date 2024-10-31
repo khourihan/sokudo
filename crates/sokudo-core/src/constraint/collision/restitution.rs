@@ -31,15 +31,14 @@ impl ParticleRestitutionConstraint {
     }
 }
 
-impl VelocityConstraint for ParticleRestitutionConstraint {
+impl VelocityConstraint<2> for ParticleRestitutionConstraint {
     #[inline]
-    fn bodies(&self) -> Vec<ColliderId> {
-        vec![self.particle, self.rb]
+    fn bodies(&self) -> [ColliderId; 2] {
+        [self.particle, self.rb]
     }
 
-    fn solve(&self, mut bodies: std::vec::IntoIter<&mut Collider>) {
-        let particle = bodies.next().unwrap();
-        let rb = bodies.next().unwrap();
+    fn solve(&self, bodies: [&mut Collider; 2]) {
+        let [particle, rb] = bodies;
 
         let ColliderBody::Particle(ref particle_body) = particle.body else {
             return;
@@ -105,15 +104,14 @@ impl RigidBodyRestitutionConstraint {
     }
 }
 
-impl VelocityConstraint for RigidBodyRestitutionConstraint {
+impl VelocityConstraint<2> for RigidBodyRestitutionConstraint {
     #[inline]
-    fn bodies(&self) -> Vec<ColliderId> {
-        vec![self.a, self.b]
+    fn bodies(&self) -> [ColliderId; 2] {
+        [self.a, self.b]
     }
 
-    fn solve(&self, mut bodies: std::vec::IntoIter<&mut Collider>) {
-        let rb1 = bodies.next().unwrap();
-        let rb2 = bodies.next().unwrap();
+    fn solve(&self, bodies: [&mut Collider; 2]) {
+        let [rb1, rb2] = bodies;
 
         let ColliderBody::Rigid(ref mut rb1_body) = rb1.body else {
             return;
