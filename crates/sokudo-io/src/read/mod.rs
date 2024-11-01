@@ -1,12 +1,14 @@
 use std::{fs, io, path};
 
 use collider::{ParsedCollider, ParsedColliderBody, RawCollider};
+use constraint::ParsedConstraint;
 use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
 
 mod types;
 pub mod collider;
+pub mod constraint;
 mod defaults;
 
 #[derive(Error, Debug)]
@@ -28,6 +30,8 @@ pub(crate) struct RawWorld {
 
     #[serde(default)]
     colliders: Vec<RawCollider>,
+    #[serde(default)]
+    constraints: Vec<ParsedConstraint>,
 }
 
 #[derive(Debug)]
@@ -36,6 +40,7 @@ pub struct ParsedWorld {
     pub dt: f32,
     pub gravity: Vec3,
     pub colliders: Vec<ParsedCollider>,
+    pub constraints: Vec<ParsedConstraint>,
 }
 
 impl ParsedWorld {
@@ -83,6 +88,7 @@ impl From<RawWorld> for ParsedWorld {
                     body: ParsedColliderBody::from(collider),
                 }
             }).collect(),
+            constraints: raw.constraints,
         }
     }
 }

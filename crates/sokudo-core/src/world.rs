@@ -347,7 +347,7 @@ impl From<ParsedWorld> for World {
             gravity: value.gravity,
             colliders: value.colliders.into_iter().map(Collider::from).collect(),
 
-            constraints: Vec::new(),
+            constraints: value.constraints.into_iter().map(|c| c.into()).collect(),
             collision_constraints: Vec::new(),
             velocity_constraints: Vec::new(),
             velocity_collision_constraints: Vec::new(),

@@ -1,4 +1,6 @@
+use distance::DistanceConstraint;
 use glam::Vec3;
+use sokudo_io::read::constraint::ParsedConstraint;
 
 use crate::collisions::collider::{Collider, ColliderId};
 
@@ -75,4 +77,26 @@ pub trait MultibodyVelocityConstraint {
 
     /// Solve the velocity constraint, applying the required impulses.
     fn solve(&self, bodies: std::vec::IntoIter<&mut Collider>);
+}
+
+impl From<ParsedConstraint> for Box<dyn Constraint<2>> {
+    fn from(value: ParsedConstraint) -> Self {
+        Box::new(match value {
+            ParsedConstraint::Distance {
+                a,
+                b,
+                anchor1,
+                anchor2,
+                length,
+                compliance,
+            } => DistanceConstraint {
+                a: ColliderId(a),
+                b: ColliderId(b),
+                l: length,
+                anchor1,
+                anchor2,
+                compliance,
+            },
+        })
+    }
 }

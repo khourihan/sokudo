@@ -30,16 +30,24 @@ impl Constraint<2> for DistanceConstraint {
 
     // TODO: pass anchors in here
     fn c(&self, bodies: [&Collider; 2]) -> f32 {
-        let [r1, r2] = self.anchors(bodies)[0..2] else { return 0.0 };
+        let [a, b] = bodies;
 
-        (r1 - r2).length() - self.l
+        let [r1, r2] = self.anchors(bodies)[0..2] else { return 0.0 };
+        let p1 = r1 - a.center_of_mass();
+        let p2 = r2 - b.center_of_mass();
+
+        (p2 - p1).length() - self.l
     }
 
     // TODO: pass anchors in here
     fn c_gradients(&self, bodies: [&Collider; 2]) -> [Vec3; 2] {
-        let [r1, r2] = self.anchors(bodies);
+        let [a, b] = bodies;
 
-        let n = (r1 - r2).normalize();
+        let [r1, r2] = self.anchors(bodies);
+        let p1 = r1 - a.center_of_mass();
+        let p2 = r2 - b.center_of_mass();
+
+        let n = (p2 - p1).normalize();
 
         [n, -n]
     }
@@ -47,9 +55,12 @@ impl Constraint<2> for DistanceConstraint {
     // TODO: pass anchors in here
     fn inverse_masses(&self, bodies: [&Collider; 2]) -> [f32; 2] {
         let [a, b] = bodies;
-        let [r1, r2] = self.anchors(bodies);
 
-        let n = (r1 - r2).normalize();
+        let [r1, r2] = self.anchors(bodies);
+        let p1 = r1 - a.center_of_mass();
+        let p2 = r2 - b.center_of_mass();
+
+        let n = (p2 - p1).normalize();
 
         let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(r1, n) };
         let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(r2, n) };
