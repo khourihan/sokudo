@@ -31,41 +31,39 @@ impl ParticleRestitutionConstraint {
     }
 }
 
-impl VelocityConstraint<2> for ParticleRestitutionConstraint {
+impl VelocityConstraint for ParticleRestitutionConstraint {
     #[inline]
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.particle, self.rb]
+    fn bodies(&self) -> (ColliderId, ColliderId) {
+        (self.particle, self.rb)
     }
 
-    fn solve(&self, bodies: [&mut Collider; 2]) {
-        let [particle, rb] = bodies;
-
-        let ColliderBody::Particle(ref particle_body) = particle.body else {
+    fn solve(&self, a: &mut Collider, b: &mut Collider) {
+        let ColliderBody::Particle(ref particle) = a.body else {
             return;
         };
         
-        let ColliderBody::Rigid(ref mut rb_body) = rb.body else {
+        let ColliderBody::Rigid(ref mut rb) = b.body else {
             return;
         };
 
-        let rb_previous_velocity = rb_body.previous_angular_velocity.cross(self.rb_anchor) + rb.previous_velocity;
-        let vdiff_prev = particle.previous_velocity - rb_previous_velocity;
+        let rb_previous_velocity = rb.previous_angular_velocity.cross(self.rb_anchor) + b.previous_velocity;
+        let vdiff_prev = a.previous_velocity - rb_previous_velocity;
         let vn_prev = self.normal.dot(vdiff_prev);
 
-        let rb_velocity = rb_body.angular_velocity.cross(self.rb_anchor) + rb.velocity;
-        let vdiff = particle.velocity - rb_velocity;
+        let rb_velocity = rb.angular_velocity.cross(self.rb_anchor) + b.velocity;
+        let vdiff = a.velocity - rb_velocity;
         let vn = self.normal.dot(vdiff);
         
-        let w1 = if particle.locked { 0.0 } else { particle_body.inverse_mass() };
-        let w2 = if rb.locked { 0.0 } else { rb_body.positional_inverse_mass(self.rb_anchor, self.normal) };
+        let w1 = if a.locked { 0.0 } else { particle.inverse_mass() };
+        let w2 = if b.locked { 0.0 } else { rb.positional_inverse_mass(self.rb_anchor, self.normal) };
         let w_sum = w1 + w2;
 
         let impulse = self.normal * ((-vn - self.coefficient * vn_prev) / w_sum);
 
-        particle.velocity += impulse * w1;
-        rb.velocity -= impulse * w2;
+        a.velocity += impulse * w1;
+        b.velocity -= impulse * w2;
 
-        rb_body.angular_velocity -= rb_body.global_inverse_inertia() * self.rb_anchor.cross(impulse);
+        rb.angular_velocity -= rb.global_inverse_inertia() * self.rb_anchor.cross(impulse);
     }
 }
 
@@ -104,43 +102,41 @@ impl RigidBodyRestitutionConstraint {
     }
 }
 
-impl VelocityConstraint<2> for RigidBodyRestitutionConstraint {
+impl VelocityConstraint for RigidBodyRestitutionConstraint {
     #[inline]
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.a, self.b]
+    fn bodies(&self) -> (ColliderId, ColliderId) {
+        (self.a, self.b)
     }
 
-    fn solve(&self, bodies: [&mut Collider; 2]) {
-        let [rb1, rb2] = bodies;
-
-        let ColliderBody::Rigid(ref mut rb1_body) = rb1.body else {
+    fn solve(&self, a: &mut Collider, b: &mut Collider) {
+        let ColliderBody::Rigid(ref mut rb1) = a.body else {
             return;
         };
         
-        let ColliderBody::Rigid(ref mut rb2_body) = rb2.body else {
+        let ColliderBody::Rigid(ref mut rb2) = b.body else {
             return;
         };
 
-        let rb1_previous_velocity = rb1_body.previous_angular_velocity.cross(self.anchor1) + rb1.previous_velocity;
-        let rb2_previous_velocity = rb2_body.previous_angular_velocity.cross(self.anchor2) + rb2.previous_velocity;
+        let rb1_previous_velocity = rb1.previous_angular_velocity.cross(self.anchor1) + a.previous_velocity;
+        let rb2_previous_velocity = rb2.previous_angular_velocity.cross(self.anchor2) + b.previous_velocity;
         let vdiff_prev = rb1_previous_velocity - rb2_previous_velocity;
         let vn_prev = self.normal.dot(vdiff_prev);
 
-        let rb1_velocity = rb1_body.angular_velocity.cross(self.anchor1) + rb1.velocity;
-        let rb2_velocity = rb2_body.angular_velocity.cross(self.anchor2) + rb2.velocity;
+        let rb1_velocity = rb1.angular_velocity.cross(self.anchor1) + a.velocity;
+        let rb2_velocity = rb2.angular_velocity.cross(self.anchor2) + b.velocity;
         let vdiff = rb1_velocity - rb2_velocity;
         let vn = self.normal.dot(vdiff);
         
-        let w1 = if rb1.locked { 0.0 } else { rb1_body.positional_inverse_mass(self.anchor1, self.normal) };
-        let w2 = if rb2.locked { 0.0 } else { rb2_body.positional_inverse_mass(self.anchor2, self.normal) };
+        let w1 = if a.locked { 0.0 } else { rb1.positional_inverse_mass(self.anchor1, self.normal) };
+        let w2 = if b.locked { 0.0 } else { rb2.positional_inverse_mass(self.anchor2, self.normal) };
         let w_sum = w1 + w2;
 
         let impulse = self.normal * ((-vn - self.coefficient * vn_prev) / w_sum);
 
-        rb1.velocity += impulse * w1;
-        rb2.velocity -= impulse * w2;
+        a.velocity += impulse * w1;
+        b.velocity -= impulse * w2;
 
-        rb1_body.angular_velocity += rb1_body.global_inverse_inertia() * self.anchor1.cross(impulse);
-        rb2_body.angular_velocity -= rb2_body.global_inverse_inertia() * self.anchor2.cross(impulse);
+        rb1.angular_velocity += rb1.global_inverse_inertia() * self.anchor1.cross(impulse);
+        rb2.angular_velocity -= rb2.global_inverse_inertia() * self.anchor2.cross(impulse);
     }
 }

@@ -1,7 +1,7 @@
 use glam::{Mat3, Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, ParticleCollisionConstraint, RigidBodyCollisionConstraint}, Constraint, VelocityConstraint}, math::skew_symmetric_mat3};
+use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, ParticleCollisionConstraint, RigidBodyCollisionConstraint}, Constraint, MultibodyConstraint, VelocityConstraint}, math::skew_symmetric_mat3};
 
 pub struct World {
     pub steps: u32,
@@ -13,10 +13,11 @@ pub struct World {
 
     pub colliders: Vec<Collider>,
 
-    pub constraints: Vec<Box<dyn Constraint<2>>>,
-    pub collision_constraints: Vec<Box<dyn Constraint<2>>>,
-    pub velocity_constraints: Vec<Box<dyn VelocityConstraint<2>>>,
-    pub velocity_collision_constraints: Vec<Box<dyn VelocityConstraint<2>>>,
+    pub constraints: Vec<Box<dyn Constraint>>,
+    pub collision_constraints: Vec<Box<dyn Constraint>>,
+    pub velocity_constraints: Vec<Box<dyn VelocityConstraint>>,
+    pub velocity_collision_constraints: Vec<Box<dyn VelocityConstraint>>,
+    pub multibody_constraints: Vec<Box<dyn MultibodyConstraint>>,
     pub lagrange: Vec<f32>,
 
     pub inspector: InspectElements,
@@ -45,10 +46,11 @@ impl World {
             // TODO: Narrow phase
 
             self.create_collisions();
-            self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
+            self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len() + self.multibody_constraints.len()];
 
             for _ in 0..self.constraint_iterations {
                 self.solve_constraints();
+                self.solve_multibody_constraints();
             }
 
             self.update_velocities();
@@ -124,17 +126,78 @@ impl World {
     }
 
     fn solve_constraints(&mut self) {
-        for (constraint, lagrange) in self.constraints.iter().chain(self.collision_constraints.iter()).zip(self.lagrange.iter_mut()) {
-            let Ok(bodies) = (unsafe {
+        for (constraint, lagrange) in self.constraints.iter()
+            .chain(self.collision_constraints.iter())
+            .zip(self.lagrange.iter_mut().take(self.constraints.len() + self.collision_constraints.len()))
+        {
+            let (id_a, id_b) = constraint.bodies();
+
+            let (a, b) = unsafe {
+                (
+                    self.colliders.get_unchecked(id_a.0 as usize),
+                    self.colliders.get_unchecked(id_b.0 as usize),
+                )
+            };
+
+            let c = constraint.c(a, b);
+            let (g1, g2) = constraint.c_gradients(a, b);
+            let (w1, w2) = constraint.inverse_masses(a, b);
+
+            let w_sum = w1 * g1.length_squared() + w2 * g2.length_squared();
+
+            let delta_lagrange = if w_sum > f32::EPSILON {
+                let tilde_compliance = constraint.compliance() / (self.sub_dt * self.sub_dt);
+                (-c - tilde_compliance * *lagrange) / (w_sum + tilde_compliance)
+            } else {
+                0.0
+            };
+
+            *lagrange += delta_lagrange;
+
+            let (r1, r2) = constraint.anchors(a, b);
+
+            let a = unsafe { self.colliders.get_unchecked_mut(id_a.0 as usize) };
+
+            let p1 = delta_lagrange * g1;
+            a.delta_position += p1 * w1;
+
+            if let ColliderBody::Rigid(rb) = &mut a.body {
+                let inv_inertia = if a.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
+                rb.rotation = Quat::normalize(rb.rotation +
+                    Quat::from_vec4(0.5 * (inv_inertia * r1.cross(p1)).extend(0.0)) * rb.rotation);
+            }
+
+            let b = unsafe { self.colliders.get_unchecked_mut(id_b.0 as usize) };
+
+            let p2 = delta_lagrange * g2;
+            b.delta_position += p2 * w2;
+
+            if let ColliderBody::Rigid(rb) = &mut b.body {
+                let inv_inertia = if b.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
+                rb.rotation = Quat::normalize(rb.rotation +
+                    Quat::from_vec4(0.5 * (inv_inertia * r2.cross(p2)).extend(0.0)) * rb.rotation);
+            }
+        }
+
+        for collider in self.colliders.iter_mut() {
+            collider.position += collider.delta_position;
+            collider.delta_position = Vec3::ZERO;
+        }
+    }
+
+    fn solve_multibody_constraints(&mut self) {
+        for (constraint, lagrange) in self.multibody_constraints.iter()
+            .zip(self.lagrange.iter_mut().skip(self.constraints.len() + self.collision_constraints.len()))
+        {
+            let bodies = unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| self.colliders.get_unchecked(id.0 as usize))
                     .collect::<Vec<_>>()
-                    .try_into()
-            }) else { continue };
+            };
 
-            let c = constraint.c(bodies);
-            let gradients = constraint.c_gradients(bodies);
-            let inverse_masses = constraint.inverse_masses(bodies);
+            let c = constraint.c(&bodies);
+            let gradients = constraint.c_gradients(&bodies);
+            let inverse_masses = constraint.inverse_masses(&bodies);
 
             let w_sum = inverse_masses
                 .iter()
@@ -150,17 +213,16 @@ impl World {
 
             *lagrange += delta_lagrange;
 
-            let anchors = constraint.anchors(bodies);
+            let anchors = constraint.anchors(&bodies);
 
-            let Ok(bodies): Result<[_; 2], _> = (unsafe {
+            let bodies = unsafe {
                 constraint.bodies().into_iter()
                     .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
                     .zip(gradients.into_iter())
                     .zip(inverse_masses.into_iter())
                     .zip(anchors.into_iter())
                     .collect::<Vec<_>>()
-                    .try_into()
-            }) else { continue };
+            };
 
             for (((body, gradient), inv_mass), anchor) in bodies {
                 let p = delta_lagrange * gradient;
@@ -194,14 +256,16 @@ impl World {
     
     fn solve_velocities(&mut self) {
         for constraint in self.velocity_constraints.iter().chain(self.velocity_collision_constraints.iter()) {
-            let Ok(bodies) = (unsafe {
-                constraint.bodies().into_iter()
-                    .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
-                    .collect::<Vec<_>>()
-                    .try_into()
-            }) else { continue };
+            let (id_a, id_b) = constraint.bodies();
 
-            constraint.solve(bodies);
+            let (a, b) = unsafe {
+                (
+                    &mut *(self.colliders.get_unchecked_mut(id_a.0 as usize) as *mut Collider),
+                    &mut *(self.colliders.get_unchecked_mut(id_b.0 as usize) as *mut Collider),
+                )
+            };
+
+            constraint.solve(a, b);
         }
     }
 
@@ -362,6 +426,7 @@ impl From<ParsedWorld> for World {
 
             constraints: value.constraints.into_iter().map(|c| c.into()).collect(),
             collision_constraints: Vec::new(),
+            multibody_constraints: Vec::new(),
             velocity_constraints: Vec::new(),
             velocity_collision_constraints: Vec::new(),
             lagrange: Vec::new(),

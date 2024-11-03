@@ -22,17 +22,15 @@ pub struct DistanceConstraint {
     pub compliance: f32,
 }
 
-impl Constraint<2> for DistanceConstraint {
+impl Constraint for DistanceConstraint {
     #[inline]
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.a, self.b]
+    fn bodies(&self) -> (ColliderId, ColliderId) {
+        (self.a, self.b)
     }
 
     // TODO: pass anchors in here
-    fn c(&self, bodies: [&Collider; 2]) -> f32 {
-        let [a, b] = bodies;
-
-        let [r1, r2] = self.anchors(bodies)[0..2] else { return 0.0 };
+    fn c(&self, a: &Collider, b: &Collider) -> f32 {
+        let (r1, r2) = self.anchors(a, b);
         let p1 = r1 - a.center_of_mass();
         let p2 = r2 - b.center_of_mass();
 
@@ -40,23 +38,19 @@ impl Constraint<2> for DistanceConstraint {
     }
 
     // TODO: pass anchors in here
-    fn c_gradients(&self, bodies: [&Collider; 2]) -> [Vec3; 2] {
-        let [a, b] = bodies;
-
-        let [r1, r2] = self.anchors(bodies);
+    fn c_gradients(&self, a: &Collider, b: &Collider) -> (Vec3, Vec3) {
+        let (r1, r2) = self.anchors(a, b);
         let p1 = r1 - a.center_of_mass();
         let p2 = r2 - b.center_of_mass();
 
         let n = (p2 - p1).normalize();
 
-        [n, -n]
+        (n, -n)
     }
 
     // TODO: pass anchors in here
-    fn inverse_masses(&self, bodies: [&Collider; 2]) -> [f32; 2] {
-        let [a, b] = bodies;
-
-        let [r1, r2] = self.anchors(bodies);
+    fn inverse_masses(&self, a: &Collider, b: &Collider) -> (f32, f32) {
+        let (r1, r2) = self.anchors(a, b);
         let p1 = r1 - a.center_of_mass();
         let p2 = r2 - b.center_of_mass();
 
@@ -65,17 +59,15 @@ impl Constraint<2> for DistanceConstraint {
         let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(r1, n) };
         let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(r2, n) };
 
-        [w1, w2]
+        (w1, w2)
     }
 
     #[inline]
-    fn anchors(&self, bodies: [&Collider; 2]) -> [Vec3; 2] {
-        let [a, b] = bodies;
-
+    fn anchors(&self, a: &Collider, b: &Collider) -> (Vec3, Vec3) {
         let r1 = a.body.global_arm(self.anchor1);
         let r2 = b.body.global_arm(self.anchor2);
 
-        [r1, r2]
+        (r1, r2)
     }
 
     #[inline]

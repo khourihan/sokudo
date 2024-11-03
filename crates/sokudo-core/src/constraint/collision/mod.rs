@@ -34,32 +34,29 @@ impl ParticleCollisionConstraint {
     }
 }
 
-impl Constraint<2> for ParticleCollisionConstraint {
+impl Constraint for ParticleCollisionConstraint {
     #[inline]
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.particle, self.rb]
+    fn bodies(&self) -> (ColliderId, ColliderId) {
+        (self.particle, self.rb)
     }
 
-    fn c(&self, _bodies: [&Collider; 2]) -> f32 {
+    fn c(&self, _a: &Collider, _b: &Collider) -> f32 {
         self.depth
     }
 
-    fn c_gradients(&self, _bodies: [&Collider; 2]) -> [Vec3; 2] {
-        let n = self.normal;
-        [-n, n]
+    fn c_gradients(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
+        (-self.normal, self.normal)
     }
 
-    fn inverse_masses(&self, bodies: [&Collider; 2]) -> [f32; 2] {
-        let [particle, rb] = bodies;
+    fn inverse_masses(&self, a: &Collider, b: &Collider) -> (f32, f32) {
+        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(Vec3::ZERO, self.normal) };
+        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(self.rb_anchor, self.normal) };
 
-        let w1 = if particle.locked { 0.0 } else { particle.body.positional_inverse_mass(Vec3::ZERO, self.normal) };
-        let w2 = if rb.locked { 0.0 } else { rb.body.positional_inverse_mass(self.rb_anchor, self.normal) };
-
-        [w1, w2]
+        (w1, w2)
     }
 
-    fn anchors(&self, _bodies: [&Collider; 2]) -> [Vec3; 2] {
-        [Vec3::ZERO, self.rb_anchor]
+    fn anchors(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
+        (Vec3::ZERO, self.rb_anchor)
     }
 
     #[inline]
@@ -108,32 +105,30 @@ impl RigidBodyCollisionConstraint {
     }
 }
 
-impl Constraint<2> for RigidBodyCollisionConstraint {
+impl Constraint for RigidBodyCollisionConstraint {
     #[inline]
-    fn bodies(&self) -> [ColliderId; 2] {
-        [self.a, self.b]
+    fn bodies(&self) -> (ColliderId, ColliderId) {
+        (self.a, self.b)
     }
 
-    fn c(&self, _bodies: [&Collider; 2]) -> f32 {
+    fn c(&self, _a: &Collider, _b: &Collider) -> f32 {
         self.depth
     }
 
-    fn c_gradients(&self, _bodies: [&Collider; 2]) -> [Vec3; 2] {
-        [self.normal, -self.normal]
+    fn c_gradients(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
+        (self.normal, -self.normal)
     }
 
-    fn inverse_masses(&self, bodies: [&Collider; 2]) -> [f32; 2] {
-        let [rb1, rb2] = bodies;
+    fn inverse_masses(&self, a: &Collider, b: &Collider) -> (f32, f32) {
+        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(self.anchor1, self.normal) };
+        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(self.anchor2, self.normal) };
 
-        let w1 = if rb1.locked { 0.0 } else { rb1.body.positional_inverse_mass(self.anchor1, self.normal) };
-        let w2 = if rb2.locked { 0.0 } else { rb2.body.positional_inverse_mass(self.anchor2, self.normal) };
-
-        [w1, w2]
+        (w1, w2)
     }
 
     #[inline]
-    fn anchors(&self, _bodies: [&Collider; 2]) -> [Vec3; 2] {
-        [self.anchor1, self.anchor2]
+    fn anchors(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
+        (self.anchor1, self.anchor2)
     }
 
     fn compliance(&self) -> f32 {
