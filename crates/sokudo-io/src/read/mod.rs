@@ -27,6 +27,8 @@ pub(crate) struct RawWorld {
     steps: u32,
     dt: f32,
     gravity: Vec3,
+    constraint_iterations: u32,
+    substeps: u32,
 
     #[serde(default)]
     colliders: Vec<RawCollider>,
@@ -39,6 +41,9 @@ pub struct ParsedWorld {
     pub steps: u32,
     pub dt: f32,
     pub gravity: Vec3,
+    pub constraint_iterations: u32,
+    pub substeps: u32,
+
     pub colliders: Vec<ParsedCollider>,
     pub constraints: Vec<ParsedConstraint>,
 }
@@ -62,6 +67,9 @@ impl From<RawWorld> for ParsedWorld {
             steps: raw.steps,
             dt: raw.dt,
             gravity: raw.gravity,
+            constraint_iterations: raw.constraint_iterations,
+            substeps: raw.substeps,
+
             colliders: raw.colliders.into_iter().enumerate().map(|(i, collider)| {
                 ParsedCollider {
                     id: i as u32,

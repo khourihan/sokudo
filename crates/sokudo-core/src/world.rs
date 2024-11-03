@@ -6,7 +6,11 @@ use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact
 pub struct World {
     pub steps: u32,
     pub dt: f32,
+    pub sub_dt: f32,
     pub gravity: Vec3,
+    pub constraint_iterations: u32,
+    pub substeps: u32,
+
     pub colliders: Vec<Collider>,
 
     pub constraints: Vec<Box<dyn Constraint<2>>>,
@@ -32,20 +36,25 @@ impl World {
 
         // TODO: Collect collision pairs
 
-        self.integrate_velocities();
-        // TODO: Warm start
-        self.integrate_positions();
-        // TODO: Relax
+        for _ in 0..self.substeps {
+            self.integrate_velocities();
+            // TODO: Warm start
+            self.integrate_positions();
+            // TODO: Relax
 
-        // TODO: Narrow phase
+            // TODO: Narrow phase
 
-        self.create_collisions();
-        self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
-        self.solve_constraints();
+            self.create_collisions();
+            self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len()];
 
-        self.update_velocities();
+            for _ in 0..self.constraint_iterations {
+                self.solve_constraints();
+            }
 
-        self.solve_velocities();
+            self.update_velocities();
+
+            self.solve_velocities();
+        }
     }
 
     fn integrate_velocities(&mut self) {
@@ -55,17 +64,17 @@ impl World {
             let external_forces = gravity;
 
             if collider.linear_damping != 0.0 {
-                collider.velocity *= 1.0 / (1.0 + self.dt * collider.linear_damping);
+                collider.velocity *= 1.0 / (1.0 + self.sub_dt * collider.linear_damping);
             }
 
-            collider.velocity += self.dt * external_forces * inv_mass;
+            collider.velocity += self.sub_dt * external_forces * inv_mass;
             collider.previous_velocity = collider.velocity;
 
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 let external_torque = Vec3::ZERO;
 
                 let effective_angular_inertia = rb.global_inverse_inertia();
-                let mut delta_ang_vel = self.dt * if effective_angular_inertia.is_finite() {
+                let mut delta_ang_vel = self.sub_dt * if effective_angular_inertia.is_finite() {
                     effective_angular_inertia.inverse() * external_torque
                 } else {
                     Vec3::ZERO
@@ -79,11 +88,11 @@ impl World {
                     let local_ang_vel = rb.rotation.inverse() * rb.angular_velocity;
                     let angular_momentum = local_inertia * local_ang_vel;
 
-                    let jacobian = local_inertia + self.dt
+                    let jacobian = local_inertia + self.sub_dt
                         * (skew_symmetric_mat3(local_ang_vel) * local_inertia
                             - skew_symmetric_mat3(angular_momentum));
 
-                    let f = self.dt * local_ang_vel.cross(angular_momentum);
+                    let f = self.sub_dt * local_ang_vel.cross(angular_momentum);
 
                     let delta_ang_vel = -jacobian.inverse() * f;
 
@@ -91,7 +100,7 @@ impl World {
                 };
 
                 if rb.angular_damping != 0.0 {
-                    rb.angular_velocity *= 1.0 / (1.0 + self.dt * rb.angular_damping);
+                    rb.angular_velocity *= 1.0 / (1.0 + self.sub_dt * rb.angular_damping);
                 }
 
                 rb.angular_velocity += delta_ang_vel;
@@ -103,12 +112,12 @@ impl World {
     fn integrate_positions(&mut self) {
         for collider in self.colliders.iter_mut().filter(|c| !c.locked) {
             collider.previous_position = collider.position;
-            collider.position += self.dt * collider.velocity;
+            collider.position += self.sub_dt * collider.velocity;
 
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 rb.previous_rotation = rb.rotation;
 
-                let delta_rot = Quat::from_scaled_axis(self.dt * rb.angular_velocity);
+                let delta_rot = Quat::from_scaled_axis(self.sub_dt * rb.angular_velocity);
                 rb.rotation = (delta_rot * rb.rotation).normalize();
             }
         }
@@ -133,7 +142,7 @@ impl World {
                 .fold(0.0, |acc, (&w, &g)| acc + w * g.length_squared());
 
             let delta_lagrange = if w_sum > f32::EPSILON {
-                let tilde_compliance = constraint.compliance() / (self.dt * self.dt);
+                let tilde_compliance = constraint.compliance() / (self.sub_dt * self.sub_dt);
                 (-c - tilde_compliance * *lagrange) / (w_sum + tilde_compliance)
             } else {
                 0.0
@@ -173,11 +182,11 @@ impl World {
 
     fn update_velocities(&mut self) {
         for collider in self.colliders.iter_mut() {
-            collider.velocity = (collider.position - collider.previous_position) / self.dt;
+            collider.velocity = (collider.position - collider.previous_position) / self.sub_dt;
 
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 let delta_rot = rb.rotation * rb.previous_rotation.inverse();
-                rb.angular_velocity = 2.0 * delta_rot.xyz() / self.dt;
+                rb.angular_velocity = 2.0 * delta_rot.xyz() / self.sub_dt;
                 rb.angular_velocity = if delta_rot.w >= 0.0 { rb.angular_velocity } else { -rb.angular_velocity };
             }
         }
@@ -281,7 +290,7 @@ impl World {
     ) -> Option<()> {
         let effective_speculative_margin = {
             // TODO: clamp linear velocities to the maximum speculative margins.
-            self.dt * (a.velocity - b.velocity).length()
+            self.sub_dt * (a.velocity - b.velocity).length()
         };
 
         // TODO: make this configurable
@@ -344,7 +353,11 @@ impl From<ParsedWorld> for World {
         World {
             steps: value.steps,
             dt: value.dt,
+            sub_dt: value.dt / value.substeps as f32,
             gravity: value.gravity,
+            constraint_iterations: value.constraint_iterations,
+            substeps: value.substeps,
+
             colliders: value.colliders.into_iter().map(Collider::from).collect(),
 
             constraints: value.constraints.into_iter().map(|c| c.into()).collect(),
