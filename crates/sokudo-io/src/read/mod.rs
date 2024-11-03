@@ -2,6 +2,7 @@ use std::{fs, io, path};
 
 use collider::{ParsedCollider, ParsedColliderBody, RawCollider};
 use constraint::ParsedConstraint;
+use defaults::DefaultOptions;
 use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
@@ -25,9 +26,13 @@ pub enum ParseError {
 #[serde(rename = "World")]
 pub(crate) struct RawWorld {
     steps: u32,
+    #[serde(default = "DefaultOptions::dt")]
     dt: f32,
+    #[serde(default = "DefaultOptions::gravity")]
     gravity: Vec3,
+    #[serde(default = "DefaultOptions::constraint_iterations")]
     constraint_iterations: u32,
+    #[serde(default = "DefaultOptions::substeps")]
     substeps: u32,
 
     #[serde(default)]

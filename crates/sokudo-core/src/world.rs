@@ -1,7 +1,7 @@
 use glam::{Mat3, Quat, Vec3};
 use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
 
-use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::{ParticleRestitutionConstraint, RigidBodyRestitutionConstraint}, ParticleCollisionConstraint, RigidBodyCollisionConstraint}, Constraint, MultibodyConstraint, VelocityConstraint}, math::skew_symmetric_mat3};
+use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::RestitutionConstraint, CollisionConstraint}, Constraint, MultibodyConstraint, VelocityConstraint}, math::skew_symmetric_mat3};
 
 pub struct World {
     pub steps: u32,
@@ -322,14 +322,14 @@ impl World {
             particle.position,
         )?;
 
-        let collision = ParticleCollisionConstraint::new(
+        let collision = CollisionConstraint::new_particle_rb(
             particle_id,
             rb_id,
             rb,
             &contact,
         );
 
-        let restitution = ParticleRestitutionConstraint::new(
+        let restitution = RestitutionConstraint::new_particle_rb(
             particle_id,
             rb_id,
             rb,
@@ -379,7 +379,7 @@ impl World {
 
         for manifold in manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let collision = RigidBodyCollisionConstraint::new(
+                let collision = CollisionConstraint::new_rb_rb(
                     a_id,
                     b_id,
                     a_body,
@@ -387,7 +387,7 @@ impl World {
                     contact,
                 );
 
-                let restitution = RigidBodyRestitutionConstraint::new(
+                let restitution = RestitutionConstraint::new_rb_rb(
                     a_id,
                     b_id,
                     a_body,

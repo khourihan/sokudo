@@ -1,11 +1,23 @@
-use glam::{UVec3, Vec3};
+use glam::Vec3;
 
 pub struct DefaultOptions;
 
 impl DefaultOptions {
     #[inline(always)]
-    pub const fn vertex_resolution() -> UVec3 {
-        UVec3::ONE
+    pub const fn dt() -> f32 {
+        0.02
+    }
+
+    pub const fn gravity() -> Vec3 {
+        Vec3::ZERO
+    }
+
+    pub const fn substeps() -> u32 {
+        4
+    }
+
+    pub const fn constraint_iterations() -> u32 {
+        10
     }
 
     #[inline(always)]

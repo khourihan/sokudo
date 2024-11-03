@@ -6,66 +6,7 @@ use super::Constraint;
 
 pub mod restitution;
 
-pub struct ParticleCollisionConstraint {
-    pub particle: ColliderId,
-    pub rb: ColliderId,
-
-    pub rb_anchor: Vec3,
-    pub depth: f32,
-    pub normal: Vec3,
-}
-
-impl ParticleCollisionConstraint {
-    pub fn new(
-        particle_id: ColliderId,
-        rb_id: ColliderId,
-        rb: &Collider,
-        contact: &PointContact,
-    ) -> Self {
-        let rb_anchor = contact.point - rb.center_of_mass();
-
-        Self {
-            particle: particle_id,
-            rb: rb_id,
-            rb_anchor,
-            depth: contact.depth,
-            normal: contact.normal,
-        }
-    }
-}
-
-impl Constraint for ParticleCollisionConstraint {
-    #[inline]
-    fn bodies(&self) -> (ColliderId, ColliderId) {
-        (self.particle, self.rb)
-    }
-
-    fn c(&self, _a: &Collider, _b: &Collider) -> f32 {
-        self.depth
-    }
-
-    fn c_gradients(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
-        (-self.normal, self.normal)
-    }
-
-    fn inverse_masses(&self, a: &Collider, b: &Collider) -> (f32, f32) {
-        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(Vec3::ZERO, self.normal) };
-        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(self.rb_anchor, self.normal) };
-
-        (w1, w2)
-    }
-
-    fn anchors(&self, _a: &Collider, _b: &Collider) -> (Vec3, Vec3) {
-        (Vec3::ZERO, self.rb_anchor)
-    }
-
-    #[inline]
-    fn compliance(&self) -> f32 {
-        0.0
-    }
-}
-
-pub struct RigidBodyCollisionConstraint {
+pub struct CollisionConstraint {
     /// The id of the first body.
     pub a: ColliderId,
     /// The id of the second body.
@@ -82,8 +23,28 @@ pub struct RigidBodyCollisionConstraint {
     pub normal: Vec3,
 }
 
-impl RigidBodyCollisionConstraint {
-    pub fn new(
+impl CollisionConstraint {
+    /// Create a new collision constraint between a particle and a rigid body.
+    pub fn new_particle_rb(
+        particle_id: ColliderId,
+        rb_id: ColliderId,
+        rb: &Collider,
+        contact: &PointContact,
+    ) -> Self {
+        let rb_anchor = contact.point - rb.center_of_mass();
+
+        Self {
+            a: particle_id,
+            b: rb_id,
+            anchor1: Vec3::ZERO,
+            anchor2: rb_anchor,
+            depth: contact.depth,
+            normal: -contact.normal,
+        }
+    }
+
+    /// Create a new collision constraint between two rigid bodies.
+    pub fn new_rb_rb(
         a_id: ColliderId,
         b_id: ColliderId,
         a_body: &RigidBody,
@@ -105,7 +66,7 @@ impl RigidBodyCollisionConstraint {
     }
 }
 
-impl Constraint for RigidBodyCollisionConstraint {
+impl Constraint for CollisionConstraint {
     #[inline]
     fn bodies(&self) -> (ColliderId, ColliderId) {
         (self.a, self.b)

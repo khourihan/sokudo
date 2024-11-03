@@ -1,4 +1,4 @@
-use glam::{Quat, UVec3, Vec3};
+use glam::{Quat, Vec3};
 use parry3d::shape::{SharedShape, TypedShape};
 use serde::Deserialize;
 
