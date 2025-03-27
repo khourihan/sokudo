@@ -1,6 +1,13 @@
 use glam::Vec3;
 
-use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody}, constraint::VelocityConstraint};
+use crate::{
+    collisions::{
+        collider::{Collider, ColliderBody, ColliderId},
+        contact::{ContactData, PointContact},
+        rigid_body::RigidBody,
+    },
+    constraint::VelocityConstraint,
+};
 
 pub struct RestitutionConstraint {
     pub a: ColliderId,
@@ -66,10 +73,7 @@ impl VelocityConstraint for RestitutionConstraint {
 
     fn solve(&self, a: &mut Collider, b: &mut Collider) {
         let (rb1_previous_velocity, rb1_velocity) = match &a.body {
-            ColliderBody::Particle(_) => (
-                a.previous_velocity,
-                a.velocity,
-            ),
+            ColliderBody::Particle(_) => (a.previous_velocity, a.velocity),
             ColliderBody::Rigid(rb) => (
                 rb.previous_angular_velocity.cross(self.anchor1) + a.previous_velocity,
                 rb.angular_velocity.cross(self.anchor1) + a.velocity,
@@ -77,10 +81,7 @@ impl VelocityConstraint for RestitutionConstraint {
         };
 
         let (rb2_previous_velocity, rb2_velocity) = match &b.body {
-            ColliderBody::Particle(_) => (
-                b.previous_velocity,
-                b.velocity,
-            ),
+            ColliderBody::Particle(_) => (b.previous_velocity, b.velocity),
             ColliderBody::Rigid(rb) => (
                 rb.previous_angular_velocity.cross(self.anchor2) + b.previous_velocity,
                 rb.angular_velocity.cross(self.anchor2) + b.velocity,
@@ -93,8 +94,16 @@ impl VelocityConstraint for RestitutionConstraint {
         let vdiff = rb1_velocity - rb2_velocity;
         let vn = self.normal.dot(vdiff);
 
-        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(self.anchor1, self.normal) };
-        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(self.anchor2, self.normal) };
+        let w1 = if a.locked {
+            0.0
+        } else {
+            a.body.positional_inverse_mass(self.anchor1, self.normal)
+        };
+        let w2 = if b.locked {
+            0.0
+        } else {
+            b.body.positional_inverse_mass(self.anchor2, self.normal)
+        };
         let w_sum = w1 + w2;
 
         let impulse = self.normal * ((-vn - self.coefficient * vn_prev) / w_sum);

@@ -1,13 +1,16 @@
-use std::path;
 use bevy::prelude::*;
 use bevy_mod_picking::DefaultPickingPlugins;
 use camera::PanOrbitPlugin;
 use player::{InitialWorld, PlayerPlugin, WorldStateHistory};
-use sokudo_io::{read::{ParseError, ParsedWorld}, write::{ReadStateError, ReadWorldStateHistory}};
+use sokudo_io::{
+    read::{ParseError, ParsedWorld},
+    write::{ReadStateError, ReadWorldStateHistory},
+};
+use std::path;
 use thiserror::Error;
 
-mod player;
 mod camera;
+mod player;
 mod util;
 
 #[derive(Error, Debug)]

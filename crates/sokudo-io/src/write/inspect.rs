@@ -12,14 +12,8 @@ pub struct InspectElements {
 #[derive(Serialize, Deserialize, Clone)]
 pub enum InspectFeature {
     Point(Vec3),
-    Ray {
-        origin: Vec3,
-        direction: Vec3,
-    },
-    Line {
-        p1: Vec3,
-        p2: Vec3,
-    },
+    Ray { origin: Vec3, direction: Vec3 },
+    Line { p1: Vec3, p2: Vec3 },
 }
 
 impl InspectElements {
@@ -48,7 +42,8 @@ impl InspectElements {
     }
 
     pub fn add_named_ray<S: ToString>(&mut self, name: S, origin: Vec3, direction: Vec3) {
-        self.elements.insert(name.to_string(), InspectFeature::Ray { origin, direction });
+        self.elements
+            .insert(name.to_string(), InspectFeature::Ray { origin, direction });
     }
 
     pub fn add_named_line<S: ToString>(&mut self, name: S, p1: Vec3, p2: Vec3) {

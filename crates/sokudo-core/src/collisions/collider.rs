@@ -1,7 +1,13 @@
 use glam::Vec3;
-use sokudo_io::{read::collider::{ParsedCollider, ParsedColliderBody, ParsedMaterial}, write::{collider::WriteCollider, transform::WriteTransform}};
+use sokudo_io::{
+    read::collider::{ParsedCollider, ParsedColliderBody, ParsedMaterial},
+    write::{collider::WriteCollider, transform::WriteTransform},
+};
 
-use crate::{coefficient::{Coefficient, CoefficientCombine}, collisions::{particle::Particle, rigid_body::RigidBody}};
+use crate::{
+    coefficient::{Coefficient, CoefficientCombine},
+    collisions::{particle::Particle, rigid_body::RigidBody},
+};
 
 #[derive(Debug)]
 pub struct Collider {
@@ -9,8 +15,8 @@ pub struct Collider {
     pub id: u32,
     /// The body of this collider.
     pub body: ColliderBody,
-    /// Whether or not this collider is locked. 
-    /// This turns off gravity and gives it infinite mass. 
+    /// Whether or not this collider is locked.
+    /// This turns off gravity and gives it infinite mass.
     pub locked: bool,
 
     /// The material of this collider.
@@ -143,9 +149,9 @@ impl From<&Collider> for WriteCollider {
             ColliderBody::Rigid(rb) => WriteTransform {
                 translate: value.position,
                 rotate: rb.rotation,
-            }
+            },
         };
-        
+
         WriteCollider {
             id: value.id,
             transform,

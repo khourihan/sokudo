@@ -13,7 +13,7 @@ pub struct ParsedCollider {
     pub locked: bool,
 
     pub material: ParsedMaterial,
-    
+
     pub position: Vec3,
     pub velocity: Vec3,
 
@@ -82,9 +82,7 @@ impl From<RawCollider> for ParsedColliderBody {
                 material: _,
                 damping: _,
                 mass,
-            } => ParsedColliderBody::Particle(ParsedParticle {
-                mass,
-            }),
+            } => ParsedColliderBody::Particle(ParsedParticle { mass }),
             RawCollider::RigidBody {
                 locked: _,
                 position: _,

@@ -14,7 +14,7 @@ pub struct RigidBody {
     /// The inverse mass of this rigid body.
     pub inverse_mass: f32,
     /// The inverse of the inertia tensor of this rigid body, in local coordinates.
-    pub inertia_tensor: InertiaTensor, 
+    pub inertia_tensor: InertiaTensor,
     /// The center of mass of this rigid body, in local coordinates.
     pub center_of_mass: Vec3,
     /// The uniform density of this rigid body.
@@ -80,7 +80,7 @@ impl From<ParsedRigidBody> for RigidBody {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InertiaTensor {
-    inverse: Mat3
+    inverse: Mat3,
 }
 
 impl Default for InertiaTensor {
@@ -90,20 +90,12 @@ impl Default for InertiaTensor {
 }
 
 impl InertiaTensor {
-    pub const INFINITY: Self = Self {
-        inverse: Mat3::ZERO,
-    };
+    pub const INFINITY: Self = Self { inverse: Mat3::ZERO };
 
     #[inline]
     pub fn new(principal_moments: Vec3) -> Self {
         let rcp = principal_moments.recip();
-        Self::from_inverse_tensor(Mat3::from_diagonal(
-            if rcp.is_finite() {
-                rcp
-            } else {
-                Vec3::ZERO
-            }
-        ))
+        Self::from_inverse_tensor(Mat3::from_diagonal(if rcp.is_finite() { rcp } else { Vec3::ZERO }))
     }
 
     #[inline]
@@ -114,7 +106,7 @@ impl InertiaTensor {
     #[inline]
     pub fn from_inverse_tensor(inverse_tensor: Mat3) -> Self {
         Self {
-            inverse: inverse_tensor
+            inverse: inverse_tensor,
         }
     }
 

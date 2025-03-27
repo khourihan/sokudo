@@ -181,7 +181,10 @@ impl Transform {
     #[inline]
     pub fn look_to(&mut self, direction: Vec3, up: Vec3) {
         let back = -direction;
-        let right = up.cross(back).try_normalize().unwrap_or_else(|| up.any_orthonormal_vector());
+        let right = up
+            .cross(back)
+            .try_normalize()
+            .unwrap_or_else(|| up.any_orthonormal_vector());
         let up = back.cross(right);
         self.rotate = Quat::from_mat3(&Mat3::from_cols(right, up, back));
     }

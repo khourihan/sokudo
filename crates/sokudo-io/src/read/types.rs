@@ -4,26 +4,19 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(rename = "Rotation")]
 pub enum RawRotation {
-    Quat {
-        x: f32,
-        y: f32,
-        z: f32,
-        w: f32,
-    },
-    EulerAngles {
-        yaw: f32,
-        pitch: f32,
-        roll: f32,
-    },
-    AxisAngle {
-        axis: Vec3,
-        angle: f32,
-    },
+    Quat { x: f32, y: f32, z: f32, w: f32 },
+    EulerAngles { yaw: f32, pitch: f32, roll: f32 },
+    AxisAngle { axis: Vec3, angle: f32 },
 }
 
 impl Default for RawRotation {
     fn default() -> Self {
-        Self::Quat { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+        Self::Quat {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            w: 1.0,
+        }
     }
 }
 

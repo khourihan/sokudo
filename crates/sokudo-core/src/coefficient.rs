@@ -28,7 +28,7 @@ impl Coefficient {
                 CoefficientCombine::Multiply => self.value * other.value,
                 CoefficientCombine::Max => self.value.max(other.value),
             },
-            rule
+            rule,
         }
     }
 }

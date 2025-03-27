@@ -7,15 +7,14 @@ pub struct PanOrbitPlugin;
 
 impl Plugin for PanOrbitPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Startup, setup_pan_orbit_camera)
-            .add_systems(
-                PostUpdate,
-                (
-                    track_pan_orbit_target,
-                    pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),
-                ).chain()
-            );
+        app.add_systems(Startup, setup_pan_orbit_camera).add_systems(
+            PostUpdate,
+            (
+                track_pan_orbit_target,
+                pan_orbit_camera.run_if(any_with_component::<PanOrbitState>),
+            )
+                .chain(),
+        );
     }
 }
 
@@ -60,7 +59,7 @@ impl Default for PanOrbitState {
 impl Default for PanOrbitSettings {
     fn default() -> Self {
         PanOrbitSettings {
-            pan_sensitivity: 0.001, // 1000 pixels per world unit
+            pan_sensitivity: 0.001,                 // 1000 pixels per world unit
             orbit_sensitivity: 0.1f32.to_radians(), // 0.1 degree per pixel
             zoom_sensitivity: 0.01,
             pan_key: Some(KeyCode::ShiftLeft),
@@ -70,9 +69,7 @@ impl Default for PanOrbitSettings {
     }
 }
 
-fn setup_pan_orbit_camera(
-    mut commands: Commands,
-) {
+fn setup_pan_orbit_camera(mut commands: Commands) {
     commands.spawn(PanOrbitCameraBundle::default());
 }
 
@@ -82,8 +79,7 @@ fn pan_orbit_camera(
     mut evr_motion: EventReader<MouseMotion>,
     mut cameras: Query<(&PanOrbitSettings, &mut PanOrbitState, &mut Transform)>,
 ) {
-    let mut total_motion: Vec2 = evr_motion.read()
-        .map(|ev| ev.delta).sum();
+    let mut total_motion: Vec2 = evr_motion.read().map(|ev| ev.delta).sum();
 
     total_motion.y = -total_motion.y;
 
@@ -150,10 +146,7 @@ fn pan_orbit_camera(
     }
 }
 
-fn track_pan_orbit_target(
-    targets: Query<(&Transform, &PickSelection)>,
-    mut cameras: Query<&mut PanOrbitState>,
-) {
+fn track_pan_orbit_target(targets: Query<(&Transform, &PickSelection)>, mut cameras: Query<&mut PanOrbitState>) {
     for (transform, selection) in &targets {
         if !selection.is_selected {
             continue;

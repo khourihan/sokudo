@@ -1,7 +1,11 @@
 use glam::{Quat, Vec3};
 use parry3d::query::PersistentQueryDispatcher;
 
-use super::{contact::{ContactData, ContactManifold, PackedFeatureId, PointContact, SingleContact}, rigid_body::RigidBody, util::FromNaType};
+use super::{
+    contact::{ContactData, ContactManifold, PackedFeatureId, PointContact, SingleContact},
+    rigid_body::RigidBody,
+    util::FromNaType,
+};
 
 pub type UnsupportedShape = parry3d::query::Unsupported;
 
@@ -116,14 +120,8 @@ pub fn contact_manifolds(
         .filter_map(|manifold| {
             let subpos1 = manifold.subshape_pos1.unwrap_or_default();
             let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-            let normal1 = Vec3::from_na(subpos1
-                .rotation
-                .transform_vector(&manifold.local_n1)
-                .normalize());
-            let normal2 = Vec3::from_na(subpos2
-                .rotation
-                .transform_vector(&manifold.local_n2)
-                .normalize());
+            let normal1 = Vec3::from_na(subpos1.rotation.transform_vector(&manifold.local_n1).normalize());
+            let normal2 = Vec3::from_na(subpos2.rotation.transform_vector(&manifold.local_n2).normalize());
 
             if !normal1.is_normalized() || !normal2.is_normalized() {
                 return None;
@@ -162,18 +160,12 @@ pub fn contact_manifolds(
         .collect()
 }
 
-pub fn contact_point(
-    collider1: &RigidBody,
-    position1: Vec3,
-    rotation1: Quat,
-    point: Vec3,
-) -> Option<PointContact> {
+pub fn contact_point(collider1: &RigidBody, position1: Vec3, rotation1: Quat, point: Vec3) -> Option<PointContact> {
     let isometry1 = isometry(position1, rotation1);
 
-    let (proj, feature_id) = collider1.scaled_shape.project_point_and_get_feature(
-        &isometry1,
-        &parry3d::math::Point::<f32>::from_na(point),
-    );
+    let (proj, feature_id) = collider1
+        .scaled_shape
+        .project_point_and_get_feature(&isometry1, &parry3d::math::Point::<f32>::from_na(point));
 
     if !proj.is_inside {
         return None;

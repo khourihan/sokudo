@@ -19,7 +19,7 @@ impl_from_na!(
     Vec3: parry3d::math::Point<f32>,
     Vec3: parry3d::math::Vector<f32>,
     Vec3: parry3d::na::Unit<parry3d::math::Vector<f32>>,
-    
+
     |v| => {
         Vec3::new(v.x, v.y, v.z)
     }

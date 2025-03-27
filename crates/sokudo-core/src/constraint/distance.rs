@@ -56,8 +56,16 @@ impl Constraint for DistanceConstraint {
 
         let n = (p2 - p1).normalize();
 
-        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(r1, n) };
-        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(r2, n) };
+        let w1 = if a.locked {
+            0.0
+        } else {
+            a.body.positional_inverse_mass(r1, n)
+        };
+        let w2 = if b.locked {
+            0.0
+        } else {
+            b.body.positional_inverse_mass(r2, n)
+        };
 
         (w1, w2)
     }

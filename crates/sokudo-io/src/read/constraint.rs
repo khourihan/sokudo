@@ -15,5 +15,5 @@ pub enum ParsedConstraint {
 
         length: f32,
         compliance: f32,
-    }
+    },
 }

@@ -7,10 +7,10 @@ use glam::Vec3;
 use serde::Deserialize;
 use thiserror::Error;
 
-mod types;
 pub mod collider;
 pub mod constraint;
 mod defaults;
+mod types;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
@@ -75,8 +75,11 @@ impl From<RawWorld> for ParsedWorld {
             constraint_iterations: raw.constraint_iterations,
             substeps: raw.substeps,
 
-            colliders: raw.colliders.into_iter().enumerate().map(|(i, collider)| {
-                ParsedCollider {
+            colliders: raw
+                .colliders
+                .into_iter()
+                .enumerate()
+                .map(|(i, collider)| ParsedCollider {
                     id: i as u32,
                     position: match collider {
                         RawCollider::Particle { position, .. } => position,
@@ -99,8 +102,8 @@ impl From<RawWorld> for ParsedWorld {
                         RawCollider::RigidBody { damping, .. } => damping.linear,
                     },
                     body: ParsedColliderBody::from(collider),
-                }
-            }).collect(),
+                })
+                .collect(),
             constraints: raw.constraints,
         }
     }

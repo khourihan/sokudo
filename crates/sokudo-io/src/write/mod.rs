@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod collider;
-pub mod transform;
 pub mod inspect;
+pub mod transform;
 
 #[derive(Error, Debug)]
 pub enum WriteStateError {
@@ -51,7 +51,7 @@ impl WriteWorldStateHistory {
     // TODO: Make async or Box::pin(async move ||)
     pub fn write<P>(&self, path: P) -> Result<(), WriteStateError>
     where
-        P: AsRef<path::Path>
+        P: AsRef<path::Path>,
     {
         let file = fs::File::create(path)?;
         ron::ser::to_writer(file, self)?;
@@ -90,7 +90,7 @@ impl ReadWorldStateHistory {
     /// Read the given `path` into a [`ReadWorldStateHistory`].
     pub fn read<P>(path: P) -> Result<ReadWorldStateHistory, ReadStateError>
     where
-        P: AsRef<path::Path>
+        P: AsRef<path::Path>,
     {
         let file = fs::File::open(path)?;
         let de: ReadWorldStateHistory = ron::de::from_reader(file)?;

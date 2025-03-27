@@ -1,6 +1,9 @@
 use std::path;
 
-use sokudo_io::{read::{ParseError, ParsedWorld}, write::{WriteWorldStateHistory, WriteStateError}};
+use sokudo_io::{
+    read::{ParseError, ParsedWorld},
+    write::{WriteStateError, WriteWorldStateHistory},
+};
 use thiserror::Error;
 
 use crate::world::World;
@@ -17,7 +20,7 @@ pub enum RunSimulationError {
 
 pub fn run_simulation<P>(world_path: P, state_path: P) -> Result<(), RunSimulationError>
 where
-    P: AsRef<path::Path>
+    P: AsRef<path::Path>,
 {
     let mut world: World = ParsedWorld::read(world_path)?.into();
     let mut history = WriteWorldStateHistory::default();

@@ -1,9 +1,4 @@
-use bevy::prelude::{
-    Vec2 as BevyVec2,
-    Vec3 as BevyVec3,
-    Vec4 as BevyVec4,
-    Quat as BevyQuat,
-};
+use bevy::prelude::{Quat as BevyQuat, Vec2 as BevyVec2, Vec3 as BevyVec3, Vec4 as BevyVec4};
 
 use glam::{Quat, Vec2, Vec3, Vec3A, Vec4};
 

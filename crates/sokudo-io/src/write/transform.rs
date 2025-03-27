@@ -9,6 +9,9 @@ pub struct WriteTransform {
 
 impl WriteTransform {
     pub fn from_translate(translate: Vec3) -> WriteTransform {
-        WriteTransform { translate, rotate: Quat::IDENTITY }
+        WriteTransform {
+            translate,
+            rotate: Quat::IDENTITY,
+        }
     }
 }

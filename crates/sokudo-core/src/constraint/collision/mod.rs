@@ -1,6 +1,10 @@
 use glam::Vec3;
 
-use crate::collisions::{collider::{Collider, ColliderId}, contact::{ContactData, PointContact}, rigid_body::RigidBody};
+use crate::collisions::{
+    collider::{Collider, ColliderId},
+    contact::{ContactData, PointContact},
+    rigid_body::RigidBody,
+};
 
 use super::Constraint;
 
@@ -25,12 +29,7 @@ pub struct CollisionConstraint {
 
 impl CollisionConstraint {
     /// Create a new collision constraint between a particle and a rigid body.
-    pub fn new_particle_rb(
-        particle_id: ColliderId,
-        rb_id: ColliderId,
-        rb: &Collider,
-        contact: &PointContact,
-    ) -> Self {
+    pub fn new_particle_rb(particle_id: ColliderId, rb_id: ColliderId, rb: &Collider, contact: &PointContact) -> Self {
         let rb_anchor = contact.point - rb.center_of_mass();
 
         Self {
@@ -81,8 +80,16 @@ impl Constraint for CollisionConstraint {
     }
 
     fn inverse_masses(&self, a: &Collider, b: &Collider) -> (f32, f32) {
-        let w1 = if a.locked { 0.0 } else { a.body.positional_inverse_mass(self.anchor1, self.normal) };
-        let w2 = if b.locked { 0.0 } else { b.body.positional_inverse_mass(self.anchor2, self.normal) };
+        let w1 = if a.locked {
+            0.0
+        } else {
+            a.body.positional_inverse_mass(self.anchor1, self.normal)
+        };
+        let w2 = if b.locked {
+            0.0
+        } else {
+            b.body.positional_inverse_mass(self.anchor2, self.normal)
+        };
 
         (w1, w2)
     }

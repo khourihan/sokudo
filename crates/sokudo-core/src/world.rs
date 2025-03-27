@@ -1,7 +1,21 @@
 use glam::{Mat3, Quat, Vec3};
-use sokudo_io::{read::ParsedWorld, write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState}};
+use sokudo_io::{
+    read::ParsedWorld,
+    write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState},
+};
 
-use crate::{collisions::{collider::{Collider, ColliderBody, ColliderId}, contact_query, rigid_body::RigidBody}, constraint::{collision::{restitution::RestitutionConstraint, CollisionConstraint}, Constraint, MultibodyConstraint, VelocityConstraint}, math::skew_symmetric_mat3};
+use crate::{
+    collisions::{
+        collider::{Collider, ColliderBody, ColliderId},
+        contact_query,
+        rigid_body::RigidBody,
+    },
+    constraint::{
+        collision::{restitution::RestitutionConstraint, CollisionConstraint},
+        Constraint, MultibodyConstraint, VelocityConstraint,
+    },
+    math::skew_symmetric_mat3,
+};
 
 pub struct World {
     pub steps: u32,
@@ -46,7 +60,8 @@ impl World {
             // TODO: Narrow phase
 
             self.create_collisions();
-            self.lagrange = vec![0.0; self.constraints.len() + self.collision_constraints.len() + self.multibody_constraints.len()];
+            self.lagrange =
+                vec![0.0; self.constraints.len() + self.collision_constraints.len() + self.multibody_constraints.len()];
 
             for _ in 0..self.constraint_iterations {
                 self.solve_constraints();
@@ -76,11 +91,12 @@ impl World {
                 let external_torque = Vec3::ZERO;
 
                 let effective_angular_inertia = rb.global_inverse_inertia();
-                let mut delta_ang_vel = self.sub_dt * if effective_angular_inertia.is_finite() {
-                    effective_angular_inertia.inverse() * external_torque
-                } else {
-                    Vec3::ZERO
-                };
+                let mut delta_ang_vel = self.sub_dt
+                    * if effective_angular_inertia.is_finite() {
+                        effective_angular_inertia.inverse() * external_torque
+                    } else {
+                        Vec3::ZERO
+                    };
 
                 // Solve for gyroscopic torque using a more stable and accurate implicit Euler
                 // method.
@@ -90,9 +106,10 @@ impl World {
                     let local_ang_vel = rb.rotation.inverse() * rb.angular_velocity;
                     let angular_momentum = local_inertia * local_ang_vel;
 
-                    let jacobian = local_inertia + self.sub_dt
-                        * (skew_symmetric_mat3(local_ang_vel) * local_inertia
-                            - skew_symmetric_mat3(angular_momentum));
+                    let jacobian = local_inertia
+                        + self.sub_dt
+                            * (skew_symmetric_mat3(local_ang_vel) * local_inertia
+                                - skew_symmetric_mat3(angular_momentum));
 
                     let f = self.sub_dt * local_ang_vel.cross(angular_momentum);
 
@@ -126,10 +143,11 @@ impl World {
     }
 
     fn solve_constraints(&mut self) {
-        for (constraint, lagrange) in self.constraints.iter()
-            .chain(self.collision_constraints.iter())
-            .zip(self.lagrange.iter_mut().take(self.constraints.len() + self.collision_constraints.len()))
-        {
+        for (constraint, lagrange) in self.constraints.iter().chain(self.collision_constraints.iter()).zip(
+            self.lagrange
+                .iter_mut()
+                .take(self.constraints.len() + self.collision_constraints.len()),
+        ) {
             let (id_a, id_b) = constraint.bodies();
 
             let (a, b) = unsafe {
@@ -162,9 +180,14 @@ impl World {
             a.delta_position += p1 * w1;
 
             if let ColliderBody::Rigid(rb) = &mut a.body {
-                let inv_inertia = if a.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
-                rb.rotation = Quat::normalize(rb.rotation +
-                    Quat::from_vec4(0.5 * (inv_inertia * r1.cross(p1)).extend(0.0)) * rb.rotation);
+                let inv_inertia = if a.locked {
+                    Mat3::ZERO
+                } else {
+                    rb.global_inverse_inertia()
+                };
+                rb.rotation = Quat::normalize(
+                    rb.rotation + Quat::from_vec4(0.5 * (inv_inertia * r1.cross(p1)).extend(0.0)) * rb.rotation,
+                );
             }
 
             let b = unsafe { self.colliders.get_unchecked_mut(id_b.0 as usize) };
@@ -173,9 +196,14 @@ impl World {
             b.delta_position += p2 * w2;
 
             if let ColliderBody::Rigid(rb) = &mut b.body {
-                let inv_inertia = if b.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
-                rb.rotation = Quat::normalize(rb.rotation +
-                    Quat::from_vec4(0.5 * (inv_inertia * r2.cross(p2)).extend(0.0)) * rb.rotation);
+                let inv_inertia = if b.locked {
+                    Mat3::ZERO
+                } else {
+                    rb.global_inverse_inertia()
+                };
+                rb.rotation = Quat::normalize(
+                    rb.rotation + Quat::from_vec4(0.5 * (inv_inertia * r2.cross(p2)).extend(0.0)) * rb.rotation,
+                );
             }
         }
 
@@ -186,11 +214,15 @@ impl World {
     }
 
     fn solve_multibody_constraints(&mut self) {
-        for (constraint, lagrange) in self.multibody_constraints.iter()
-            .zip(self.lagrange.iter_mut().skip(self.constraints.len() + self.collision_constraints.len()))
-        {
+        for (constraint, lagrange) in self.multibody_constraints.iter().zip(
+            self.lagrange
+                .iter_mut()
+                .skip(self.constraints.len() + self.collision_constraints.len()),
+        ) {
             let bodies = unsafe {
-                constraint.bodies().into_iter()
+                constraint
+                    .bodies()
+                    .into_iter()
                     .map(|id| self.colliders.get_unchecked(id.0 as usize))
                     .collect::<Vec<_>>()
             };
@@ -216,7 +248,9 @@ impl World {
             let anchors = constraint.anchors(&bodies);
 
             let bodies = unsafe {
-                constraint.bodies().into_iter()
+                constraint
+                    .bodies()
+                    .into_iter()
                     .map(|id| &mut *(self.colliders.get_unchecked_mut(id.0 as usize) as *mut Collider))
                     .zip(gradients.into_iter())
                     .zip(inverse_masses.into_iter())
@@ -229,9 +263,15 @@ impl World {
                 body.delta_position += p * inv_mass;
 
                 if let ColliderBody::Rigid(rb) = &mut body.body {
-                    let inverse_inertia = if body.locked { Mat3::ZERO } else { rb.global_inverse_inertia() };
-                    rb.rotation = Quat::normalize(rb.rotation +
-                        Quat::from_vec4(0.5 * (inverse_inertia * anchor.cross(p)).extend(0.0)) * rb.rotation);
+                    let inverse_inertia = if body.locked {
+                        Mat3::ZERO
+                    } else {
+                        rb.global_inverse_inertia()
+                    };
+                    rb.rotation = Quat::normalize(
+                        rb.rotation
+                            + Quat::from_vec4(0.5 * (inverse_inertia * anchor.cross(p)).extend(0.0)) * rb.rotation,
+                    );
                 }
             }
         }
@@ -249,13 +289,21 @@ impl World {
             if let ColliderBody::Rigid(rb) = &mut collider.body {
                 let delta_rot = rb.rotation * rb.previous_rotation.inverse();
                 rb.angular_velocity = 2.0 * delta_rot.xyz() / self.sub_dt;
-                rb.angular_velocity = if delta_rot.w >= 0.0 { rb.angular_velocity } else { -rb.angular_velocity };
+                rb.angular_velocity = if delta_rot.w >= 0.0 {
+                    rb.angular_velocity
+                } else {
+                    -rb.angular_velocity
+                };
             }
         }
     }
-    
+
     fn solve_velocities(&mut self) {
-        for constraint in self.velocity_constraints.iter().chain(self.velocity_collision_constraints.iter()) {
+        for constraint in self
+            .velocity_constraints
+            .iter()
+            .chain(self.velocity_collision_constraints.iter())
+        {
             let (id_a, id_b) = constraint.bodies();
 
             let (a, b) = unsafe {
@@ -315,19 +363,9 @@ impl World {
         particle_id: ColliderId,
         rb_id: ColliderId,
     ) -> Option<()> {
-        let contact = contact_query::contact_point(
-            rb_body,
-            rb.position,
-            rb_body.rotation,
-            particle.position,
-        )?;
+        let contact = contact_query::contact_point(rb_body, rb.position, rb_body.rotation, particle.position)?;
 
-        let collision = CollisionConstraint::new_particle_rb(
-            particle_id,
-            rb_id,
-            rb,
-            &contact,
-        );
+        let collision = CollisionConstraint::new_particle_rb(particle_id, rb_id, rb, &contact);
 
         let restitution = RestitutionConstraint::new_particle_rb(
             particle_id,
@@ -379,13 +417,7 @@ impl World {
 
         for manifold in manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let collision = CollisionConstraint::new_rb_rb(
-                    a_id,
-                    b_id,
-                    a_body,
-                    b_body,
-                    contact,
-                );
+                let collision = CollisionConstraint::new_rb_rb(a_id, b_id, a_body, b_body, contact);
 
                 let restitution = RestitutionConstraint::new_rb_rb(
                     a_id,
