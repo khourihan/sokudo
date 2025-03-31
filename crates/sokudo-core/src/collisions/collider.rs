@@ -53,6 +53,7 @@ pub enum ColliderBody {
 #[derive(Debug)]
 pub struct Material {
     pub restitution: Coefficient,
+    pub dynamic_friction: Coefficient,
 }
 
 impl Collider {
@@ -138,6 +139,7 @@ impl From<ParsedMaterial> for Material {
     fn from(value: ParsedMaterial) -> Self {
         Material {
             restitution: Coefficient::new(value.restitution, CoefficientCombine::Average),
+            dynamic_friction: Coefficient::new(value.dynamic_friction, CoefficientCombine::Average),
         }
     }
 }

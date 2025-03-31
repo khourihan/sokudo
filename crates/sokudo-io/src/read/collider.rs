@@ -111,12 +111,15 @@ impl From<RawCollider> for ParsedColliderBody {
 pub struct ParsedMaterial {
     #[serde(default = "DefaultOptions::material_restitution")]
     pub restitution: f32,
+    #[serde(default = "DefaultOptions::material_dynamic_friction")]
+    pub dynamic_friction: f32,
 }
 
 impl Default for ParsedMaterial {
     fn default() -> Self {
         Self {
             restitution: DefaultOptions::material_restitution(),
+            dynamic_friction: DefaultOptions::material_dynamic_friction(),
         }
     }
 }

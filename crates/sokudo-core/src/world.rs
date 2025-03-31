@@ -10,10 +10,7 @@ use crate::{
         contact_query,
         rigid_body::RigidBody,
     },
-    constraint::{
-        collision::{restitution::RestitutionConstraint, CollisionConstraint},
-        Constraint, MultibodyConstraint, VelocityConstraint,
-    },
+    constraint::{collision::CollisionConstraint, Constraint, MultibodyConstraint, VelocityConstraint},
     math::skew_symmetric_mat3,
 };
 
@@ -365,18 +362,17 @@ impl World {
     ) -> Option<()> {
         let contact = contact_query::contact_point(rb_body, rb.position, rb_body.rotation, particle.position)?;
 
-        let collision = CollisionConstraint::new_particle_rb(particle_id, rb_id, rb, &contact);
-
-        let restitution = RestitutionConstraint::new_particle_rb(
+        let collision = Box::new(CollisionConstraint::new_particle_rb(
             particle_id,
             rb_id,
             rb,
             &contact,
             *rb.material.restitution.combine(particle.material.restitution),
-        );
+            *rb.material.dynamic_friction.combine(particle.material.dynamic_friction),
+        ));
 
-        self.collision_constraints.push(Box::new(collision));
-        self.velocity_collision_constraints.push(Box::new(restitution));
+        self.collision_constraints.push(collision.clone());
+        self.velocity_collision_constraints.push(collision);
 
         Some(())
     }
@@ -417,19 +413,18 @@ impl World {
 
         for manifold in manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let collision = CollisionConstraint::new_rb_rb(a_id, b_id, a_body, b_body, contact);
-
-                let restitution = RestitutionConstraint::new_rb_rb(
+                let collision = Box::new(CollisionConstraint::new_rb_rb(
                     a_id,
                     b_id,
                     a_body,
                     b_body,
                     contact,
                     *a.material.restitution.combine(b.material.restitution),
-                );
+                    *a.material.dynamic_friction.combine(b.material.dynamic_friction),
+                ));
 
-                self.collision_constraints.push(Box::new(collision));
-                self.velocity_collision_constraints.push(Box::new(restitution));
+                self.collision_constraints.push(collision.clone());
+                self.velocity_collision_constraints.push(collision);
             }
         }
 
