@@ -1,11 +1,11 @@
 use std::{fs, path};
 
 use collider::WriteCollider;
-use inspect::InspectElements;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod collider;
+#[cfg(feature = "inspect")]
 pub mod inspect;
 pub mod transform;
 
@@ -32,7 +32,8 @@ pub enum ReadStateError {
 #[derive(Serialize, Deserialize)]
 pub struct WriteWorldState {
     pub colliders: Vec<WriteCollider>,
-    pub inspector: InspectElements,
+    #[cfg(feature = "inspect")]
+    pub inspector: inspect::InspectElements,
 }
 
 #[derive(Serialize, Default)]

@@ -9,3 +9,6 @@ sokudo-io.workspace = true
 
 glam.workspace = true
 thiserror.workspace = true
+
+[features]
+inspect = []

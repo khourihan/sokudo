@@ -4,27 +4,31 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [
-    "crates/sokudo-core",
-    "crates/sokudo-io",
-    "crates/sokudo-playback",
-]
+members = ["crates/sokudo-core", "crates/sokudo-io", "crates/sokudo-playback"]
 
 [workspace.dependencies]
 sokudo-core = { path = "crates/sokudo-core" }
 sokudo-io = { path = "crates/sokudo-io" }
 sokudo-playback = { path = "crates/sokudo-playback" }
 
-glam = { version = "0.29.0", features = [ "serde" ] }
+glam = { version = "0.29.0", features = ["serde"] }
 parry3d = "0.17.1"
-serde = { version = "1.0.210", features = [ "derive" ] }
+serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.64"
 
 [dependencies]
 sokudo-core.workspace = true
+sokudo-io.workspace = true
 sokudo-playback.workspace = true
 
-clap = { version = "4.5.20", features = [ "derive" ] }
+clap = { version = "4.5.20", features = ["derive"] }
+
+[features]
+inspect = [
+    "sokudo-core/inspect",
+    "sokudo-io/inspect",
+    "sokudo-playback/inspect",
+]
 
 [profile.dev]
 opt-level = 1

@@ -1,6 +1,8 @@
 use distance::DistanceConstraint;
 use glam::Vec3;
 use sokudo_io::read::constraint::ParsedConstraint;
+#[cfg(feature = "inspect")]
+use sokudo_io::write::inspect::InspectElements;
 
 use crate::collisions::collider::{Collider, ColliderId};
 
@@ -67,7 +69,7 @@ pub trait VelocityConstraint {
     fn bodies(&self) -> (ColliderId, ColliderId);
 
     /// Solve the velocity constraint, applying the required impulses.
-    fn solve(&self, a: &mut Collider, b: &mut Collider);
+    fn solve(&self, a: &mut Collider, b: &mut Collider, #[cfg(feature = "inspect")] inspector: &mut InspectElements);
 }
 
 pub trait MultibodyVelocityConstraint {

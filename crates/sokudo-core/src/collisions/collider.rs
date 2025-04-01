@@ -22,7 +22,7 @@ pub struct Collider {
     /// The material of this collider.
     pub material: Material,
 
-    /// The position of the collider. For rigid bodies, this is also its center of mass.
+    /// The position of the collider.
     pub position: Vec3,
     /// The required change in position for each substep. At the end of each step, this is added to `position`.
     pub delta_position: Vec3,

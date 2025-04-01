@@ -6,6 +6,9 @@ use crate::collisions::{
     rigid_body::{InertiaTensor, RigidBody},
 };
 
+#[cfg(feature = "inspect")]
+use sokudo_io::write::inspect::InspectElements;
+
 use super::{Constraint, VelocityConstraint};
 
 #[derive(Debug, Clone)]
@@ -35,15 +38,19 @@ pub struct RigidBodyCollisionConstraint {
 
 impl RigidBodyCollisionConstraint {
     /// Create a new rigid body collision constraint.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         a_id: ColliderId,
         b_id: ColliderId,
+        a: &Collider,
+        b: &Collider,
         a_body: &RigidBody,
         b_body: &RigidBody,
         contact: &ContactData,
         restitution: f32,
         friction: f32,
         stiffness: f32,
+        #[cfg(feature = "inspect")] inspector: &mut InspectElements,
     ) -> Self {
         let anchor1 = a_body.rotation * (contact.point1 - a_body.center_of_mass);
         let anchor2 = b_body.rotation * (contact.point2 - b_body.center_of_mass);
@@ -59,8 +66,8 @@ impl RigidBodyCollisionConstraint {
             restitution,
             friction,
             stiffness,
-            point1: a_body.rotation * contact.point1,
-            point2: b_body.rotation * contact.point2,
+            point1: a_body.rotation * contact.point1 + a.position,
+            point2: b_body.rotation * contact.point2 + b.position,
         }
     }
 }
@@ -110,7 +117,7 @@ impl VelocityConstraint for RigidBodyCollisionConstraint {
         (self.a, self.b)
     }
 
-    fn solve(&self, a: &mut Collider, b: &mut Collider) {
+    fn solve(&self, a: &mut Collider, b: &mut Collider, #[cfg(feature = "inspect")] inspector: &mut InspectElements) {
         let x0 = a.center_of_mass();
         let x1 = b.center_of_mass();
 
@@ -183,6 +190,13 @@ impl VelocityConstraint for RigidBodyCollisionConstraint {
         if w2 != 0.0 {
             b.velocity += w2 * -p;
             body1.angular_velocity += body1.global_inverse_inertia() * self.anchor2.cross(-p);
+        }
+
+        #[cfg(feature = "inspect")]
+        {
+            inspector.add_point(self.point1);
+            inspector.add_ray(self.point1, self.normal);
+            inspector.add_ray(self.point1, t);
         }
     }
 }

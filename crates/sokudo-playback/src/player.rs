@@ -7,10 +7,15 @@ use sokudo_io::{
         collider::{ParsedColliderBody, ParsedShape},
         ParsedWorld,
     },
-    write::{inspect::InspectFeature, ReadWorldStateHistory},
+    write::ReadWorldStateHistory,
 };
 
-use crate::{camera::PanOrbitState, util::ToBevyType};
+#[cfg(feature = "inspect")]
+use crate::camera::PanOrbitState;
+#[cfg(feature = "inspect")]
+use sokudo_io::write::inspect::InspectFeature;
+
+use crate::util::ToBevyType;
 
 pub struct PlayerPlugin;
 
@@ -36,7 +41,10 @@ impl Plugin for PlayerPlugin {
                     restart_player,
                 ),
             )
-            .add_systems(Update, (update_inspect_elements, update_colliders));
+            .add_systems(Update, update_colliders);
+
+        #[cfg(feature = "inspect")]
+        app.add_systems(Update, update_inspect_elements);
     }
 }
 
@@ -241,6 +249,7 @@ fn update_colliders(
     }
 }
 
+#[cfg(feature = "inspect")]
 fn update_inspect_elements(
     mut gizmos: Gizmos,
     index: Res<WorldStateIndex>,

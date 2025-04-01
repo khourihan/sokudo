@@ -1,8 +1,11 @@
 use glam::{Mat3, Quat, Vec3};
 use sokudo_io::{
     read::ParsedWorld,
-    write::{collider::WriteCollider, inspect::InspectElements, WriteWorldState},
+    write::{collider::WriteCollider, WriteWorldState},
 };
+
+#[cfg(feature = "inspect")]
+use sokudo_io::write::inspect::InspectElements;
 
 use crate::{
     collisions::{
@@ -31,6 +34,7 @@ pub struct World {
     pub multibody_constraints: Vec<Box<dyn MultibodyConstraint>>,
     pub lagrange: Vec<f32>,
 
+    #[cfg(feature = "inspect")]
     pub inspector: InspectElements,
 }
 
@@ -44,6 +48,7 @@ impl World {
     }
 
     pub fn step(&mut self) {
+        #[cfg(feature = "inspect")]
         self.inspector.reset();
 
         // TODO: Collect collision pairs
@@ -310,7 +315,12 @@ impl World {
                 )
             };
 
-            constraint.solve(a, b);
+            constraint.solve(
+                a,
+                b,
+                #[cfg(feature = "inspect")]
+                &mut self.inspector,
+            );
         }
     }
 
@@ -417,12 +427,16 @@ impl World {
                 let collision = Box::new(RigidBodyCollisionConstraint::new(
                     a_id,
                     b_id,
+                    a,
+                    b,
                     a_body,
                     b_body,
                     contact,
                     *a.material.restitution.combine(b.material.restitution),
                     *a.material.dynamic_friction.combine(b.material.dynamic_friction),
                     *a.material.stiffness.combine(b.material.stiffness),
+                    #[cfg(feature = "inspect")]
+                    &mut self.inspector,
                 ));
 
                 self.collision_constraints.push(collision.clone());
@@ -434,10 +448,16 @@ impl World {
     }
 
     pub fn state(&self) -> WriteWorldState {
-        WriteWorldState {
+        #[cfg(feature = "inspect")]
+        return WriteWorldState {
             colliders: self.colliders.iter().map(WriteCollider::from).collect(),
             inspector: self.inspector.clone(),
-        }
+        };
+
+        #[cfg(not(feature = "inspect"))]
+        return WriteWorldState {
+            colliders: self.colliders.iter().map(WriteCollider::from).collect(),
+        };
     }
 }
 
@@ -460,6 +480,7 @@ impl From<ParsedWorld> for World {
             velocity_collision_constraints: Vec::new(),
             lagrange: Vec::new(),
 
+            #[cfg(feature = "inspect")]
             inspector: InspectElements::default(),
         }
     }
