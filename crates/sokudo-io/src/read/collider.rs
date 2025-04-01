@@ -113,6 +113,8 @@ pub struct ParsedMaterial {
     pub restitution: f32,
     #[serde(default = "DefaultOptions::material_dynamic_friction")]
     pub dynamic_friction: f32,
+    #[serde(default = "DefaultOptions::material_stiffness")]
+    pub stiffness: f32,
 }
 
 impl Default for ParsedMaterial {
@@ -120,6 +122,7 @@ impl Default for ParsedMaterial {
         Self {
             restitution: DefaultOptions::material_restitution(),
             dynamic_friction: DefaultOptions::material_dynamic_friction(),
+            stiffness: DefaultOptions::material_stiffness(),
         }
     }
 }

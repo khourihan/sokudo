@@ -10,7 +10,7 @@ use crate::{
         contact_query,
         rigid_body::RigidBody,
     },
-    constraint::{collision::CollisionConstraint, Constraint, MultibodyConstraint, VelocityConstraint},
+    constraint::{collision::RigidBodyCollisionConstraint, Constraint, MultibodyConstraint, VelocityConstraint},
     math::skew_symmetric_mat3,
 };
 
@@ -362,17 +362,18 @@ impl World {
     ) -> Option<()> {
         let contact = contact_query::contact_point(rb_body, rb.position, rb_body.rotation, particle.position)?;
 
-        let collision = Box::new(CollisionConstraint::new_particle_rb(
-            particle_id,
-            rb_id,
-            rb,
-            &contact,
-            *rb.material.restitution.combine(particle.material.restitution),
-            *rb.material.dynamic_friction.combine(particle.material.dynamic_friction),
-        ));
-
-        self.collision_constraints.push(collision.clone());
-        self.velocity_collision_constraints.push(collision);
+        // TODO:
+        // let collision = Box::new(RigidBodyCollisionConstraint::new_particle_rb(
+        //     particle_id,
+        //     rb_id,
+        //     rb,
+        //     &contact,
+        //     *rb.material.restitution.combine(particle.material.restitution),
+        //     *rb.material.dynamic_friction.combine(particle.material.dynamic_friction),
+        // ));
+        //
+        // self.collision_constraints.push(collision.clone());
+        // self.velocity_collision_constraints.push(collision);
 
         Some(())
     }
@@ -413,7 +414,7 @@ impl World {
 
         for manifold in manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let collision = Box::new(CollisionConstraint::new_rb_rb(
+                let collision = Box::new(RigidBodyCollisionConstraint::new(
                     a_id,
                     b_id,
                     a_body,
@@ -421,6 +422,7 @@ impl World {
                     contact,
                     *a.material.restitution.combine(b.material.restitution),
                     *a.material.dynamic_friction.combine(b.material.dynamic_friction),
+                    *a.material.stiffness.combine(b.material.stiffness),
                 ));
 
                 self.collision_constraints.push(collision.clone());

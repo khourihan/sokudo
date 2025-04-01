@@ -44,4 +44,9 @@ impl DefaultOptions {
     pub const fn material_dynamic_friction() -> f32 {
         1.0
     }
+
+    #[inline(always)]
+    pub const fn material_stiffness() -> f32 {
+        1.0
+    }
 }

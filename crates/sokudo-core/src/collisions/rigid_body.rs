@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use glam::{Mat3, Quat, Vec3};
 use parry3d::shape::SharedShape;
 use sokudo_io::read::collider::ParsedRigidBody;
@@ -144,6 +146,19 @@ impl InertiaTensor {
     #[inline]
     pub fn is_nan(&self) -> bool {
         self.inverse.is_nan()
+    }
+}
+
+impl Index<(usize, usize)> for InertiaTensor {
+    type Output = f32;
+
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
+        match index.1 {
+            0 => &self.inverse.x_axis[index.0],
+            1 => &self.inverse.y_axis[index.0],
+            2 => &self.inverse.z_axis[index.0],
+            _ => unreachable!(),
+        }
     }
 }
 
