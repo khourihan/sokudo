@@ -118,17 +118,17 @@ impl VelocityConstraint for RigidBodyCollisionConstraint {
     }
 
     fn solve(&self, a: &mut Collider, b: &mut Collider, #[cfg(feature = "inspect")] inspector: &mut InspectElements) {
-        let x0 = a.center_of_mass();
-        let x1 = b.center_of_mass();
+        let x1 = a.center_of_mass();
+        let x2 = b.center_of_mass();
 
-        let (ColliderBody::Rigid(body0), ColliderBody::Rigid(body1)) = (&mut a.body, &mut b.body) else {
+        let (ColliderBody::Rigid(body1), ColliderBody::Rigid(body2)) = (&mut a.body, &mut b.body) else {
             unreachable!()
         };
 
-        let rb0_v = body0.angular_velocity.cross(self.anchor1) + a.velocity;
-        let rb1_v = body1.angular_velocity.cross(self.anchor2) + b.velocity;
+        let rb1_v = body1.angular_velocity.cross(self.anchor1) + a.velocity;
+        let rb2_v = body2.angular_velocity.cross(self.anchor2) + b.velocity;
 
-        let v_rel = rb0_v - rb1_v;
+        let v_rel = rb1_v - rb2_v;
         let v_rel_n = self.normal.dot(v_rel);
 
         let mut t = v_rel - v_rel_n * self.normal;
@@ -140,16 +140,16 @@ impl VelocityConstraint for RigidBodyCollisionConstraint {
         let w1 = if a.locked {
             0.0
         } else {
-            body0.positional_inverse_mass(self.anchor1, self.normal)
+            body1.positional_inverse_mass(self.anchor1, self.normal)
         };
         let w2 = if b.locked {
             0.0
         } else {
-            body1.positional_inverse_mass(self.anchor2, self.normal)
+            body2.positional_inverse_mass(self.anchor2, self.normal)
         };
 
-        let k1 = compute_k_matrix(w1, self.point1, x0, &body0.inertia_tensor);
-        let k2 = compute_k_matrix(w2, self.point2, x1, &body1.inertia_tensor);
+        let k1 = compute_k_matrix(w1, self.point1, x1, &body1.inertia_tensor);
+        let k2 = compute_k_matrix(w2, self.point2, x2, &body2.inertia_tensor);
         let k = k1 + k2;
 
         let nkn_inv = self.normal.dot(k * self.normal).recip();
@@ -184,12 +184,12 @@ impl VelocityConstraint for RigidBodyCollisionConstraint {
 
         if w1 != 0.0 {
             a.velocity += w1 * p;
-            body0.angular_velocity += body0.global_inverse_inertia() * self.anchor1.cross(p);
+            body1.angular_velocity += body1.global_inverse_inertia() * self.anchor1.cross(p);
         }
 
         if w2 != 0.0 {
             b.velocity += w2 * -p;
-            body1.angular_velocity += body1.global_inverse_inertia() * self.anchor2.cross(-p);
+            body2.angular_velocity += body2.global_inverse_inertia() * self.anchor2.cross(-p);
         }
 
         #[cfg(feature = "inspect")]
